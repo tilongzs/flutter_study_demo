@@ -56,8 +56,8 @@ class _HomePageState extends State<HomePage>{
               child: RaisedButton(
                   color: Colors.amberAccent,
                   onPressed: () async{
-                    _count = await compute(isolateCountEvent, 1000000000);
-                   //  _count = await isolateCountEvent2(1000000000);
+                    _count = await compute(countFunc, 1000000000);
+                   //  _count = await isolateCountFunc(1000000000);
                     setState(() { });
                   },
                   child: Text(_count.toString())),
@@ -68,7 +68,7 @@ class _HomePageState extends State<HomePage>{
     );
   }
 
-  static Future<int> isolateCountEvent(int num) async {
+  static Future<int> countFunc(int num) async {
     int count = 0;
     while (num > 0) {
       if (num % 2 == 0) {
@@ -79,7 +79,7 @@ class _HomePageState extends State<HomePage>{
     return count;
   }
 
-  static Future<dynamic> isolateCountEvent2(int num) async {
+  static Future<dynamic> isolateCountFunc(int num) async {
     // 获取处理函数的SendPort
     final receivePort = ReceivePort();
     await Isolate.spawn(isolateCountProc, receivePort.sendPort);
