@@ -25,11 +25,19 @@ class HomePage extends StatefulWidget {
 }
 
 class _ScrollBar extends StatelessWidget {
+  double _viewHeight = 1;
+  double _parentHeight = 1;
+
+  _ScrollBar(double viewHeight, double parentHeight){
+    _viewHeight = viewHeight;
+    _parentHeight = parentHeight;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
       width: 18,
-      height: 60,
+      height: /*60*/_viewHeight == 0 ? 60 : _parentHeight * _parentHeight / _viewHeight,
       decoration: BoxDecoration(
           shape: BoxShape.rectangle,
           borderRadius: BorderRadius.all(Radius.circular(20)),
@@ -54,20 +62,22 @@ class _ScrollBar extends StatelessWidget {
 class _HomePageState extends State<HomePage> {
   final List<String> _recvMsg = []; // 接收到的消息
   double _alignmentY = -1; // 范围-1~1
+  double _maxScrollExtent = 0;
+  final _listHeight = 300.0;
 
   @override
   void initState() {
     super.initState();
 
     // test
-    for (int i = 0; i < 100; ++i) {
+    for (int i = 0; i < 30; ++i) {
       _recvMsg.add(i.toString());
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+     return Scaffold(
       appBar: AppBar(
         title: Text('Custom Scrollbar'),
       ),
@@ -81,7 +91,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 color: Colors.black12,
               ),
-              height: 300,
+              height: _listHeight,
               child: Stack(
                 alignment: Alignment.topRight,
                 children: [
@@ -90,7 +100,7 @@ class _HomePageState extends State<HomePage> {
                     // 滚动条
                     alignment: Alignment(1, _alignmentY),
                     padding: EdgeInsets.only(right: 5),
-                    child: _ScrollBar(),
+                    child: _ScrollBar(_maxScrollExtent + _listHeight, _listHeight),
                   )
                 ],
               ),
@@ -107,7 +117,8 @@ class _HomePageState extends State<HomePage> {
     print('滚动组件最大滚动距离:${metrics.maxScrollExtent}');
     print('当前滚动位置:${metrics.pixels}');
 
-    _alignmentY = -1 + (metrics.pixels / metrics.maxScrollExtent) * 2;
+    _maxScrollExtent = metrics.maxScrollExtent == double.infinity ? 0 : metrics.maxScrollExtent;
+    _alignmentY = metrics.maxScrollExtent == 0 ? -1 : -1 + (metrics.pixels / metrics.maxScrollExtent) * 2;
     print('_alignmentY:$_alignmentY');
 
     setState(() {
