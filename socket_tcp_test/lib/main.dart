@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:wifi_ip/wifi_ip.dart';
+import 'package:buffer/buffer.dart';
 
 void main() {
   runApp(MyApp());
@@ -357,6 +358,16 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // 发送大缓存数据
+  void onBtnSendBigBuffer(){
+   /* var dataWriter = ByteDataWriter();
+    dataWriter.writeUint8(1); // 1个字节
+    _connectedSocket.add(dataWriter.toBytes());*/
+
+    var byteData = ByteData(1024*1024);
+    _connectedSocket.add(byteData.buffer.asUint8List());
+  }
+
   Widget createSendMsgRect() {
     return Container(
       margin: EdgeInsets.all(10),
@@ -389,8 +400,8 @@ class _HomePageState extends State<HomePage> {
             spacing: 10,
             children: [
               RaisedButton(onPressed: onBtnSendMsg, child: Text('发送消息')),
-              RaisedButton(
-                  onPressed: onBtnSendmultipleMsg, child: Text('发送多条消息')),
+              RaisedButton(onPressed: onBtnSendmultipleMsg, child: Text('发送多条消息')),
+              RaisedButton(onPressed: onBtnSendBigBuffer, child: Text('发送大缓存数据')),
             ],
           ),
         ],
