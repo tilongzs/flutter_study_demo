@@ -33,11 +33,20 @@ class _ScrollBar extends StatelessWidget {
     _parentHeight = parentHeight;
   }
 
+  double GenerateHeight(){
+    if (_viewHeight == 0) {
+      return 0;
+    }  else {
+      double height = _parentHeight * _parentHeight / _viewHeight;
+      return height < 50 ? 50 : height; // 限制最小值
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
       width: 18,
-      height: /*60*/_viewHeight == 0 ? 60 : _parentHeight * _parentHeight / _viewHeight,
+      height: GenerateHeight(),
       decoration: BoxDecoration(
           shape: BoxShape.rectangle,
           borderRadius: BorderRadius.all(Radius.circular(20)),
