@@ -176,7 +176,7 @@ class _HomePageState extends State<HomePage> {
 
       // 开始监听
       _serverSocket.listen(onAccept,
-          onError: onSocketError, onDone: onServerListemSocketClose);
+          onError: onSocketError, onDone: onServerListenSocketClose);
       setState(() {});
       printLog('开始监听');
     } catch (e) {
@@ -210,7 +210,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // 作为Server停止监听
-  void onServerListemSocketClose() {
+  void onServerListenSocketClose() {
     _serverSocket = null;
     printLog('服务端停止监听');
   }
