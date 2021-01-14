@@ -98,7 +98,6 @@ class _HomePageState extends State<HomePage> {
 
     _IPTxtController.text = _localIP;
     _portTxtController.text = '23300';
-
     initIP();  // 尝试获取本机局域网IP
   }
 
