@@ -82,8 +82,8 @@ class _HomePageState extends State<HomePage> {
   final _recvMsgListHeight = 200.0;
 
   String _localIP = '127.0.0.1';  //本机局域网IP
-  Socket _connectedSocket; // 与服务器建立连接的socket
-  ServerSocket _serverSocket;
+  Socket _connectedSocket = null; // 已建立连接的socket
+  ServerSocket _serverSocket = null;  // 服务器监听socket
 
   TextEditingController _sendMsgController =
       TextEditingController(); //  发送消息文本控制器
@@ -204,8 +204,9 @@ class _HomePageState extends State<HomePage> {
   // 作为Server有新连接
   void onAccept(Socket socket) {
     _connectedSocket = socket;
-    socket.listen(onSocketRecv, onError: onSocketError, onDone: onSocketClose);
-    printLog('新客户端连接');
+    _connectedSocket.listen(onSocketRecv, onError: onSocketError, onDone: onSocketClose);
+
+    printLog('有新客户端连接：${_connectedSocket.remoteAddress.address}:${_connectedSocket.remotePort}');
   }
 
   // 作为Server停止监听
