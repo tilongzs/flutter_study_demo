@@ -218,11 +218,12 @@ class _HomePageState extends State<HomePage> {
   void onSocketRecv(Uint8List data) {
     var decoder = Utf8Decoder();
     String msg = decoder.convert(data); // 将UTF8数据解码
-    printLog('收到：${data.length}字节数据 内容:$msg');
+    printLog('收到：${data.lengthInBytes}字节数据 内容:$msg');
   }
 
   // socket关闭
   void onSocketClose() {
+    _connectedSocket.close();
     _connectedSocket = null;
     printLog('断开连接');
   }

@@ -190,7 +190,7 @@ class _HomePageState extends State<HomePage> {
           Datagram dg = _bindSocket.receive();
           var decoder = Utf8Decoder();
           String msg = decoder.convert(dg.data); // 将UTF8数据解码
-          printLog('收到来自${dg.address.toString()}:${dg.port}的数据：${dg.data.length}字节数据 内容:$msg');
+          printLog('收到来自${dg.address.toString()}:${dg.port}的数据：${dg.data.lengthInBytes}字节数据 内容:$msg');
         }
         break;
       case RawSocketEvent.write:
