@@ -188,8 +188,7 @@ class _HomePageState extends State<HomePage> {
       case RawSocketEvent.read:
         {
           Datagram dg = _bindSocket.receive();
-          var decoder = Utf8Decoder();
-          String msg = decoder.convert(dg.data); // 将UTF8数据解码
+          String msg = utf8.decode(dg.data); // 将UTF8数据解码
           printLog('收到来自${dg.address.toString()}:${dg.port}的数据：${dg.data.lengthInBytes}字节数据 内容:$msg');
         }
         break;
@@ -305,8 +304,7 @@ class _HomePageState extends State<HomePage> {
   void onBtnSendMsg() async {
     if (_sendMsgController.text.isNotEmpty) {
       if (_bindSocket != null) {
-        var encoder = Utf8Encoder(); // 创建UTF8转换器，以支持发送中文
-        _bindSocket.send(encoder.convert(_sendMsgController.text),  InternetAddress.tryParse(_IPTxtController.text),  int.tryParse(_portTxtController.text)); // 发送
+        _bindSocket.send(utf8.encode(_sendMsgController.text),  InternetAddress.tryParse(_IPTxtController.text),  int.tryParse(_portTxtController.text)); // 发送
       }
 
       _sendMsgController.text = '';
@@ -316,8 +314,7 @@ class _HomePageState extends State<HomePage> {
 
   // 连续发送多条消息
   void onBtnSendmultipleMsg() {
-    var encoder = Utf8Encoder();
-    var data = encoder.convert(_sendMsgController.text);
+    var data = utf8.encode(_sendMsgController.text);
     for (int i = 0; i < 100; ++i) {
       _bindSocket.send(data,  InternetAddress.tryParse(_IPTxtController.text),  int.tryParse(_portTxtController.text)); // 发送
     }

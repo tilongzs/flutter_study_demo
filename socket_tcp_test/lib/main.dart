@@ -216,8 +216,7 @@ class _HomePageState extends State<HomePage> {
 
   // 接收到数据
   void onSocketRecv(Uint8List data) {
-    var decoder = Utf8Decoder();
-    String msg = decoder.convert(data); // 将UTF8数据解码
+    String msg = utf8.decode(data); // 将UTF8数据解码
     printLog('收到：${data.lengthInBytes}字节数据 内容:$msg');
   }
 
@@ -343,8 +342,7 @@ class _HomePageState extends State<HomePage> {
   void onBtnSendMsg() async {
     if (_sendMsgController.text.isNotEmpty) {
       if (_connectedSocket != null) {
-        var encoder = Utf8Encoder(); // 创建UTF8转换器，以支持发送中文
-        _connectedSocket.add(encoder.convert(_sendMsgController.text)); // 发送
+        _connectedSocket.add(utf8.encode(_sendMsgController.text)); // 发送UTF8数据
       }
 
       _sendMsgController.text = '';

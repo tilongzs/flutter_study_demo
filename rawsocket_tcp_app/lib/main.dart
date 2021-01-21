@@ -81,6 +81,8 @@ class _HomePageState extends State<HomePage> {
   double _recvMsgMaxScrollExtent = 0;
   final _recvMsgListHeight = 200.0;
 
+  var _recvTotalCount = 0;
+
   String _localIP = '127.0.0.1';  //本机局域网IP
   RawSocket _connectedSocket = null; // 已建立连接的socket
   RawServerSocket _serverSocket = null;  // 服务器监听socket
@@ -233,9 +235,11 @@ class _HomePageState extends State<HomePage> {
             availableLen = _connectedSocket.available();
           }while (availableLen != 0);
 
-          var decoder = Utf8Decoder();
-          String msg = decoder.convert(buffer.toBytes()); // 将UTF8数据解码
+          String msg = utf8.decode(buffer.toBytes()); // 将UTF8数据解码
           printLog('收到：${buffer.length}字节数据 内容:$msg');
+
+          _recvTotalCount += (buffer.length as int);
+         // printLog('共收到：$_recvTotalCount字节数据');
         }
         break;
       case RawSocketEvent.write:
@@ -379,8 +383,7 @@ class _HomePageState extends State<HomePage> {
   void onBtnSendMsg() async {
     if (_sendMsgController.text.isNotEmpty) {
       if (_connectedSocket != null) {
-        var encoder = Utf8Encoder(); // 创建UTF8转换器，以支持发送中文
-        _connectedSocket.write(encoder.convert(_sendMsgController.text)); // 发送
+        _connectedSocket.write(utf8.encode(_sendMsgController.text)); // 发送UTF8数据
       }
 
       _sendMsgController.text = '';
