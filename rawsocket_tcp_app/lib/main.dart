@@ -176,7 +176,7 @@ class _HomePageState extends State<HomePage> {
           InternetAddress.tryParse(serverIP), serverPot);
 
       // 开始监听
-      _serverSocket.listen(onAccept,  onError: onSocketError, onDone: onServerListenSocketClose);
+      _serverSocket.listen(onServerSocketData,  onError: onSocketError, onDone: onServerSocketDone);
       setState(() {});
       printLog('开始监听');
     } catch (e) {
@@ -200,8 +200,8 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // 作为Server有新连接
-  void onAccept(RawSocket socket) {
+  // 作为Server有新连接（Accept）
+  void onServerSocketData(RawSocket socket) {
     _connectedSocket = socket;
     _connectedSocket.listen(onSocketData, onError: onSocketError, onDone: onSocketClose);
 
@@ -209,7 +209,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // 作为Server停止监听
-  void onServerListenSocketClose() {
+  void onServerSocketDone() {
     _serverSocket = null;
     printLog('服务端停止监听');
   }

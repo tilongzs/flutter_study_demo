@@ -174,8 +174,7 @@ class _HomePageState extends State<HomePage> {
           InternetAddress.tryParse(serverIP), serverPot);
 
       // 开始监听
-      _serverSocket.listen(onAccept,
-          onError: onSocketError, onDone: onServerListenSocketClose);
+      _serverSocket.listen(onServerSocketData, onError: onSocketError, onDone: onServerSocketDone);
       setState(() {});
       printLog('开始监听');
     } catch (e) {
@@ -188,10 +187,8 @@ class _HomePageState extends State<HomePage> {
     var serverIP = _IPTxtController.text;
     var serverPot = int.parse(_portTxtController.text);
     try {
-      _connectedSocket = await Socket.connect(serverIP, serverPot,
-          timeout: Duration(milliseconds: 500));
-      _connectedSocket.listen(onSocketRecv,
-          onError: onSocketError, onDone: onSocketClose);
+      _connectedSocket = await Socket.connect(serverIP, serverPot, timeout: Duration(milliseconds: 500));
+      _connectedSocket.listen(onSocketData, onError: onSocketError, onDone: onSocketDone);
 
       printLog('与服务端建立连接');
       setState(() {});
@@ -200,28 +197,28 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // 作为Server有新连接
-  void onAccept(Socket socket) {
+  // 作为Server有新连接（Accept）
+  void onServerSocketData(Socket socket) {
     _connectedSocket = socket;
-    _connectedSocket.listen(onSocketRecv, onError: onSocketError, onDone: onSocketClose);
+    _connectedSocket.listen(onSocketData, onError: onSocketError, onDone: onSocketDone);
 
     printLog('有新客户端连接：${_connectedSocket.remoteAddress.address}:${_connectedSocket.remotePort}');
   }
 
   // 作为Server停止监听
-  void onServerListenSocketClose() {
+  void onServerSocketDone() {
     _serverSocket = null;
     printLog('服务端停止监听');
   }
 
   // 接收到数据
-  void onSocketRecv(Uint8List data) {
+  void onSocketData(Uint8List data) {
     String msg = utf8.decode(data); // 将UTF8数据解码
     printLog('收到：${data.lengthInBytes}字节数据 内容:$msg');
   }
 
   // socket关闭
-  void onSocketClose() {
+  void onSocketDone() {
     _connectedSocket.close();
     _connectedSocket = null;
     printLog('断开连接');

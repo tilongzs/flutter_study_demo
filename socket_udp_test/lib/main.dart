@@ -168,7 +168,7 @@ class _HomePageState extends State<HomePage> {
   void onBtnListen() async{
     try{
       _bindSocket = await RawDatagramSocket.bind(_localIP,  int.parse(_portTxtController.text));
-      _bindSocket.listen(onSocketEvent, onError: onSocketError, onDone: onSocketClose);
+      _bindSocket.listen(onSocketData, onError: onSocketError, onDone: onSocketDone);
     }catch(e){
       printLog('开始监听出现异常，e=${e.toString()}');
     }
@@ -183,7 +183,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // socket事件
-  void onSocketEvent(RawSocketEvent e){
+  void onSocketData(RawSocketEvent e){
     switch(e){
       case RawSocketEvent.read:
         {
@@ -211,7 +211,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // socket关闭
-  void onSocketClose() {
+  void onSocketDone() {
     _bindSocket = null;
     printLog('socket关闭');
   }
