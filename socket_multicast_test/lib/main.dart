@@ -1,10 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:wifi_ip/wifi_ip.dart';
-import 'package:buffer/buffer.dart';
 
 void main() {
   runApp(MyApp());
@@ -81,33 +78,26 @@ class _HomePageState extends State<HomePage> {
   double _recvMsgMaxScrollExtent = 0;
   final _recvMsgListHeight = 200.0;
 
-  var _recvTotalCount = 0;
+  String _multicastIP = '239.233.233.1';  // 组播IP
+  RawDatagramSocket _bindSocket;
 
-  String _localIP = '127.0.0.1';  //本机局域网IP
-  RawSocket _connectedSocket = null; // 已建立连接的socket
-  RawServerSocket _serverSocket = null;  // 服务器监听socket
-
-  TextEditingController _sendMsgController =
-  TextEditingController(); //  发送消息文本控制器
-  TextEditingController _IPTxtController =
-  TextEditingController(); //  连接服务器IP文本控制器
-  TextEditingController _portTxtController =
-  TextEditingController(); //  连接服务器端口文本控制器
+  TextEditingController _sendMsgController = TextEditingController(); //  发送消息文本控制器
+  TextEditingController _ipMulticastTxtController = TextEditingController(); //  组播IP文本控制器
+  TextEditingController _portTxtController = TextEditingController(); //  连接服务器端口文本控制器
 
   @override
   void initState() {
     super.initState();
 
-    _IPTxtController.text = _localIP;
+    _ipMulticastTxtController.text = _multicastIP;
     _portTxtController.text = '23300';
-    initIP();  // 尝试获取本机局域网IP
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('TCP_Test'),
+        title: Text('Multicast_Test'),
       ),
       body: Center(
         child: Column(
@@ -119,23 +109,6 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
     );
-  }
-
-  // 获取本机局域网IP
-  void initIP() async{
-    try {
-      WifiIpInfo wifiInfo;
-      wifiInfo = await WifiIp.getWifiIp;
-      _localIP = wifiInfo.ip;
-    } on PlatformException {
-      print('Failed to get broadcast IP.');
-    } catch (e) {
-      printLog('尝试获取本机局域网IP异常，e=${e.toString()}');
-    }
-
-    setState(() {
-      _IPTxtController.text = _localIP;
-    });
   }
 
   // 接收消息列表框
@@ -167,77 +140,33 @@ class _HomePageState extends State<HomePage> {
   /*****************************************************************************/
 
   /// IP设置区域
-  // 作为Server开始监听
-  void onBtnListen() async {
-    var serverIP = _IPTxtController.text;
-    var serverPot = int.parse(_portTxtController.text);
-    try {
-      _serverSocket = await RawServerSocket.bind(
-          InternetAddress.tryParse(serverIP), serverPot);
-
-      // 开始监听
-      _serverSocket.listen(onAccept,  onError: onSocketError, onDone: onServerListenSocketClose);
-      setState(() {});
-      printLog('开始监听');
-    } catch (e) {
-      printLog('监听socket出现异常，e=${e.toString()}');
+  // bind、listen
+  void onBtnListen() async{
+    try{
+      _bindSocket = await RawDatagramSocket.bind(InternetAddress.anyIPv4,  int.parse(_portTxtController.text));
+      _bindSocket.joinMulticast(InternetAddress(_ipMulticastTxtController.text));
+      _bindSocket.listen(onSocketEvent, onError: onSocketError, onDone: onSocketClose);
+    }catch(e){
+      printLog('开始监听出现异常，e=${e.toString()}');
     }
   }
 
-  // 连接到Server
-  void onBtnConnectToServer() async {
-    var serverIP = _IPTxtController.text;
-    var serverPot = int.parse(_portTxtController.text);
-    try {
-      _connectedSocket = await RawSocket.connect(serverIP, serverPot,
-          timeout: Duration(milliseconds: 500));
-      _connectedSocket.listen(onSocketData, onError: onSocketError, onDone: onSocketClose);
+  // 关闭socket
+  void onBtnCloseSocket(){
+    _bindSocket.close();
+    _bindSocket = null;
 
-      printLog('与服务端建立连接');
-      setState(() {});
-    } catch (e) {
-      printLog('连接socket出现异常，e=${e.toString()}');
-    }
-  }
-
-  // 作为Server有新连接
-  void onAccept(RawSocket socket) {
-    _connectedSocket = socket;
-    _connectedSocket.listen(onSocketData, onError: onSocketError, onDone: onSocketClose);
-
-    printLog('有新客户端连接：${_connectedSocket.remoteAddress.address}:${_connectedSocket.remotePort}');
-  }
-
-  // 作为Server停止监听
-  void onServerListenSocketClose() {
-    _serverSocket = null;
-    printLog('服务端停止监听');
+    setState(() {});
   }
 
   // socket事件
-  void onSocketData(RawSocketEvent socketEvent) {
-    switch(socketEvent){
+  void onSocketEvent(RawSocketEvent e){
+    switch(e){
       case RawSocketEvent.read:
         {
-          printLog('RawSocketEvent.read');
-          var buffer = BytesBuffer();
-          var availableLen = _connectedSocket.available();
-          do{
-            Uint8List data = _connectedSocket.read(availableLen);
-            if (null != data) {
-              buffer.add(data);
-            }else{
-              break;
-            }
-
-            availableLen = _connectedSocket.available();
-          }while (availableLen != 0);
-
-          String msg = utf8.decode(buffer.toBytes()); // 将UTF8数据解码
-          printLog('收到：${buffer.length}字节数据 内容:$msg');
-
-          _recvTotalCount += (buffer.length as int);
-         // printLog('共收到：$_recvTotalCount字节数据');
+          Datagram dg = _bindSocket.receive();
+          String msg = utf8.decode(dg.data); // 将UTF8数据解码
+          printLog('收到来自${dg.address.toString()}:${dg.port}的数据：${dg.data.lengthInBytes}字节数据 内容:$msg');
         }
         break;
       case RawSocketEvent.write:
@@ -248,7 +177,6 @@ class _HomePageState extends State<HomePage> {
       case RawSocketEvent.readClosed:
         {
           printLog('RawSocketEvent.readClosed');
-          _connectedSocket.close(); // 对方主动断开连接
         }
         break;
       case RawSocketEvent.closed:
@@ -261,60 +189,29 @@ class _HomePageState extends State<HomePage> {
 
   // socket关闭
   void onSocketClose() {
-    _connectedSocket.close();
-    _connectedSocket = null;
-    printLog('断开连接');
+    _bindSocket = null;
+    printLog('socket关闭');
   }
 
   // socket错误
   void onSocketError(Object error) {
-    printLog('与服务端已连接的socket出现错误，error=${error.toString()}');
+    printLog('socket出现错误，error=${error.toString()}');
   }
 
   Widget createIPSettingRect() {
-    Function createConnectButton = () {
-      return Wrap(
-        spacing: 10,
-        children: [
-          RaisedButton(onPressed: onBtnListen, child: Text('监听')),
-          RaisedButton(onPressed: onBtnConnectToServer, child: Text('连接'))
-        ],
-      );
-    };
-
-    Function createDisconnectButton = () {
-      return RaisedButton(
-          onPressed: () {
-            // 断开已连接的socket
-            if (_connectedSocket != null) {
-              _connectedSocket.close();
-              _connectedSocket = null;
-            }
-
-            // 断开监听socket
-            if (_serverSocket != null) {
-              _serverSocket.close();
-              _serverSocket = null;
-            }
-
-            setState(() {});
-          },
-          child: Text('断开连接'));
-    };
-
     return Container(
       margin: EdgeInsets.all(10),
       child: Wrap(
         direction: Axis.vertical,
         spacing: 10,
         children: [
-          // IP地址
+          // 组播IP地址
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text('主机IP：'),
+              Text('组播IP：'),
               Container(
-                // 端口输入区域
+                // IP输入区域
                 width: 200,
                 height: 50,
                 decoration: BoxDecoration(
@@ -328,7 +225,7 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     TextField(
                       maxLines: 1,
-                      controller: _IPTxtController,
+                      controller: _ipMulticastTxtController,
                       decoration: InputDecoration(border: InputBorder.none),
                     ),
                   ],
@@ -367,9 +264,12 @@ class _HomePageState extends State<HomePage> {
           ),
 
           // 按钮
-          (_connectedSocket != null || _serverSocket != null)
-              ? createDisconnectButton()
-              : createConnectButton(),
+          Wrap(
+            spacing: 10,
+            children: [
+              _bindSocket == null ? RaisedButton(onPressed: onBtnListen, child: Text('监听')) : RaisedButton(onPressed: onBtnCloseSocket, child: Text('关闭socket')),
+            ],
+          )
         ],
       ),
     );
@@ -380,8 +280,8 @@ class _HomePageState extends State<HomePage> {
   // 发送消息
   void onBtnSendMsg() async {
     if (_sendMsgController.text.isNotEmpty) {
-      if (_connectedSocket != null) {
-        _connectedSocket.write(utf8.encode(_sendMsgController.text)); // 发送UTF8数据
+      if (_bindSocket != null) {
+        _bindSocket.send(utf8.encode(_sendMsgController.text),  InternetAddress(_ipMulticastTxtController.text),  int.tryParse(_portTxtController.text)); // 发送
       }
 
       _sendMsgController.text = '';
@@ -389,24 +289,14 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // 发送大缓存数据
-  void onBtnSendBigBuffer(){
-    var byteData = ByteData(1024*1024*4);
-    int remainBytes = byteData.lengthInBytes;
-    int hasSentBytes = 0; // 已发送字节数
-    const maxSendBytes = 65536; // 单次发送最大字节数
-    int currentSendBytes = maxSendBytes; // 当前将要发送字节数
-    int sentBytes = 0; // 当前实际发送字节数
-    do{
-      if (remainBytes < currentSendBytes) {
-        currentSendBytes = remainBytes;
+  // 连续发送多条消息
+  void onBtnSendmultipleMsg() {
+    if (_sendMsgController.text.isNotEmpty) {
+      var data = utf8.encode(_sendMsgController.text);
+      for (int i = 0; i < 100; ++i) {
+        _bindSocket.send(data,  InternetAddress(_ipMulticastTxtController.text),  int.tryParse(_portTxtController.text)); // 发送
       }
-
-      sentBytes = _connectedSocket.write(byteData.buffer.asUint8List(), hasSentBytes, currentSendBytes);
-      hasSentBytes += sentBytes;
-      remainBytes -= sentBytes;
-    }while(remainBytes != 0);
-    printLog('onBtnSendBigBuffer完成，共发送${hasSentBytes}字节数据');
+    }
   }
 
   Widget createSendMsgRect() {
@@ -441,7 +331,7 @@ class _HomePageState extends State<HomePage> {
             spacing: 10,
             children: [
               RaisedButton(onPressed: onBtnSendMsg, child: Text('发送消息')),
-              RaisedButton(onPressed: onBtnSendBigBuffer, child: Text('发送大缓存数据')),
+              RaisedButton(onPressed: onBtnSendmultipleMsg, child: Text('发送多条消息')),
             ],
           ),
         ],

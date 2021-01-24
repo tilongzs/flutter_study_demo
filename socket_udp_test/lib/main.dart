@@ -81,11 +81,11 @@ class _HomePageState extends State<HomePage> {
   final _recvMsgListHeight = 200.0;
 
   String _localIP = '127.0.0.1';  //本机局域网IP
-  RawDatagramSocket _bindSocket = null;
+  RawDatagramSocket _bindSocket;
 
   TextEditingController _sendMsgController =
   TextEditingController(); //  发送消息文本控制器
-  TextEditingController _IPTxtController =
+  TextEditingController _ipTxtController =
   TextEditingController(); //  连接服务器IP文本控制器
   TextEditingController _portTxtController =
   TextEditingController(); //  连接服务器端口文本控制器
@@ -94,7 +94,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
 
-    _IPTxtController.text = _localIP;
+    _ipTxtController.text = _localIP;
     _portTxtController.text = '23300';
 
     initIP();  // 尝试获取本机局域网IP
@@ -131,7 +131,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     setState(() {
-      _IPTxtController.text = _localIP;
+      _ipTxtController.text = _localIP;
     });
   }
 
@@ -248,7 +248,7 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     TextField(
                       maxLines: 1,
-                      controller: _IPTxtController,
+                      controller: _ipTxtController,
                       decoration: InputDecoration(border: InputBorder.none),
                     ),
                   ],
@@ -304,7 +304,7 @@ class _HomePageState extends State<HomePage> {
   void onBtnSendMsg() async {
     if (_sendMsgController.text.isNotEmpty) {
       if (_bindSocket != null) {
-        _bindSocket.send(utf8.encode(_sendMsgController.text),  InternetAddress.tryParse(_IPTxtController.text),  int.tryParse(_portTxtController.text)); // 发送
+        _bindSocket.send(utf8.encode(_sendMsgController.text),  InternetAddress.tryParse(_ipTxtController.text),  int.tryParse(_portTxtController.text)); // 发送
       }
 
       _sendMsgController.text = '';
@@ -316,7 +316,7 @@ class _HomePageState extends State<HomePage> {
   void onBtnSendmultipleMsg() {
     var data = utf8.encode(_sendMsgController.text);
     for (int i = 0; i < 100; ++i) {
-      _bindSocket.send(data,  InternetAddress.tryParse(_IPTxtController.text),  int.tryParse(_portTxtController.text)); // 发送
+      _bindSocket.send(data,  InternetAddress.tryParse(_ipTxtController.text),  int.tryParse(_portTxtController.text)); // 发送
     }
   }
 
