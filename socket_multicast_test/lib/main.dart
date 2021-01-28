@@ -162,25 +162,21 @@ class _HomePageState extends State<HomePage> {
   // socket事件
   void onSocketData(RawSocketEvent e){
     switch(e){
-      case RawSocketEvent.read:
-        {
+      case RawSocketEvent.read: {
           Datagram dg = _bindSocket.receive();
           String msg = utf8.decode(dg.data); // 将UTF8数据解码
           printLog('收到来自${dg.address.toString()}:${dg.port}的数据：${dg.data.lengthInBytes}字节数据 内容:$msg');
         }
         break;
-      case RawSocketEvent.write:
-        {
+      case RawSocketEvent.write: {
           printLog('RawSocketEvent.write');
         }
         break;
-      case RawSocketEvent.readClosed:
-        {
+      case RawSocketEvent.readClosed: {
           printLog('RawSocketEvent.readClosed');
         }
         break;
-      case RawSocketEvent.closed:
-        {
+      case RawSocketEvent.closed: {
           printLog('RawSocketEvent.closed');
         }
         break;

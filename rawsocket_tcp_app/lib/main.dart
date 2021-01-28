@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:wifi_ip/wifi_ip.dart';
+import 'package:wifi_info_flutter/wifi_info_flutter.dart';
 import 'package:buffer/buffer.dart';
 
 void main() {
@@ -123,13 +124,19 @@ class _HomePageState extends State<HomePage> {
 
   // 获取本机局域网IP
   void initIP() async{
-    try {
-      WifiIpInfo wifiInfo;
-      wifiInfo = await WifiIp.getWifiIp;
-      _localIP = wifiInfo.ip;
-    } on PlatformException {
-      print('Failed to get broadcast IP.');
-    } catch (e) {
+    // try {
+    //   WifiIpInfo wifiInfo;
+    //   wifiInfo = await WifiIp.getWifiIp;
+    //   _localIP = wifiInfo.ip;
+    // } on PlatformException {
+    //   print('Failed to get broadcast IP.');
+    // } catch (e) {
+    //   printLog('尝试获取本机局域网IP异常，e=${e.toString()}');
+    // }
+
+    try{
+      _localIP = await WifiInfo().getWifiIP();
+    } catch(e){
       printLog('尝试获取本机局域网IP异常，e=${e.toString()}');
     }
 
