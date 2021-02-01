@@ -70,7 +70,7 @@ class _HomePageState extends State<HomePage>{
     }
   }
 
-  void onBtnMoveWIndow(){
+  void onBtnMoveWindow(){
     if (_hwnd != 0) {
       MoveWindow(_hwnd, 100, 100, 200, 200, 1);
     }  else {
@@ -137,7 +137,7 @@ class _HomePageState extends State<HomePage>{
           children: [
             ElevatedButton(onPressed: onBtnWindowFromPoint, child: Text('WindowFromPoint')),
             ElevatedButton(onPressed: onBtnFindWindowEx, child: Text('FindWindowEx')),
-            ElevatedButton(onPressed: onBtnMoveWIndow, child: Text('MoveWindow')),
+            ElevatedButton(onPressed: onBtnMoveWindow, child: Text('MoveWindow')),
             ElevatedButton(onPressed: onBtnCenterWindow, child: Text('窗口居中')),
             ElevatedButton(onPressed: onBtnCloseWindow, child: Text('CloseWindow')),
             ElevatedButton(onPressed: onBtnPostQuitMessage, child: Text('PostQuitMessage')),
