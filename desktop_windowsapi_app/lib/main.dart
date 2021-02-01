@@ -37,17 +37,15 @@ class _HomePageState extends State<HomePage>{
   }
 
   void onBtnWindowFromPoint(){
-    //Pointer<POINT> cursorPoint = Pointer<POINT>.fromAddress(0);
-    final cursorPoint = POINT.allocate();
-    int isSucess = GetCursorPos(cursorPoint.addressOf);
+    final cursorPoint = allocate<POINT>();
+    int isSucess = GetCursorPos(cursorPoint);
     if (isSucess != 0) {
-      print('GetCursorPos success');
+      print('GetCursorPos success x:${cursorPoint.ref.x} y:${cursorPoint.ref.y}');
 
-      POINT a = POINT.allocate();
-      a.x = 100;
-      a.y = 100;
-      //   int hwnd = WindowFromPoint(cursorPoint.addressOf.address);
-      _hwnd = WindowFromPoint(a.addressOf.address);
+      cursorPoint.ref.x = 100;
+      cursorPoint.ref.y = 100;
+
+      _hwnd = WindowFromPoint(cursorPoint.address);
       if (_hwnd != 0) {
         print('WindowFromPoint success');
       } else {
@@ -58,7 +56,7 @@ class _HomePageState extends State<HomePage>{
       print('GetCursorPos failed');
     }
 
-    free(cursorPoint.addressOf);
+    free(cursorPoint);
   }
 
   void onBtnFindWindowEx(){
@@ -81,7 +79,7 @@ class _HomePageState extends State<HomePage>{
   void onBtnCloseWindow(){
     if (_hwnd != 0) {
       // 仅仅关闭窗口，Flutter桌面进程仍在运行，因此不能用来关闭Flutter桌面进程！
-      SendMessage(_hwnd,  WM_CLOSE, 0, 0);
+      SendMessage(_hwnd, WM_CLOSE, 0, 0);
     }  else {
       print('_hwnd == 0');
     }
@@ -106,7 +104,7 @@ class _HomePageState extends State<HomePage>{
           direction: Axis.vertical,
           spacing: 10,
           children: [
-            ElevatedButton(onPressed: onBtnWindowFromPoint, child: Text('nWindowFromPoint')),
+            ElevatedButton(onPressed: onBtnWindowFromPoint, child: Text('WindowFromPoint')),
             ElevatedButton(onPressed: onBtnFindWindowEx, child: Text('FindWindowEx')),
             ElevatedButton(onPressed: onBtnMoveWIndow, child: Text('MoveWindow')),
             ElevatedButton(onPressed: onBtnCloseWindow, child: Text('CloseWindow')),
