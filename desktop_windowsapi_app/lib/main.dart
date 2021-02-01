@@ -84,7 +84,7 @@ class _HomePageState extends State<HomePage>{
       int scrWidth = GetSystemMetrics(0); // SM_CXSCREEN
       int scrHeight = GetSystemMetrics(1);  // SM_CYSCREEN
 
-      // 获取窗体尺寸
+      // 获取窗体客户区尺寸（客户区尺寸小于窗口尺寸）
       final rect = allocate<RECT>();
       GetClientRect(_hwnd, rect);
       int width = rect.ref.right - rect.ref.left;
@@ -95,7 +95,8 @@ class _HomePageState extends State<HomePage>{
       int top = ((scrHeight - height) / 2).toInt();
 
       // 设置窗体位置 （居中显示）
-      MoveWindow(_hwnd, left, top, width, height,  1);
+    //  MoveWindow(_hwnd, left, top, width, height,  1);
+      SetWindowPos(_hwnd, 0, left, top, 0, 0, 1 | 4/*SWP_NOSIZE | SWP_NOZORDER*/);
     }  else {
       print('_hwnd == 0');
     }
