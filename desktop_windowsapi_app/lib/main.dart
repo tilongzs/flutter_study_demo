@@ -1,4 +1,5 @@
 import 'dart:ffi';
+import 'dart:io';
 import 'package:ffi/ffi.dart';
 import 'package:win32/win32.dart';
 import 'package:flutter/material.dart';
@@ -111,6 +112,16 @@ class _HomePageState extends State<HomePage>{
     }
   }
 
+  // 最小化窗口
+  void minWindow(){
+    ShowWindow(_hwnd, SW_MINIMIZE);
+  }
+
+  // 最大化窗口
+  void maxWindow(){
+    ShowWindow(_hwnd, SW_MAXIMIZE);
+  }
+
   void onBtnPostQuitMessage(){
     // 在这里没什么卵用，并不能用来关闭Flutter桌面进程！
     PostQuitMessage(0);
@@ -131,20 +142,45 @@ class _HomePageState extends State<HomePage>{
       appBar: AppBar(
         title: Text('App'),
       ),
-      body: Center(
-        child: Wrap(
-          spacing: 10,
-          children: [
-            ElevatedButton(onPressed: onBtnWindowFromPoint, child: Text('WindowFromPoint')),
-            ElevatedButton(onPressed: onBtnFindWindowEx, child: Text('FindWindowEx')),
-            ElevatedButton(onPressed: onBtnMoveWindow, child: Text('MoveWindow')),
-            ElevatedButton(onPressed: onBtnCenterWindow, child: Text('窗口居中')),
-            ElevatedButton(onPressed: onBtnCloseWindow, child: Text('CloseWindow')),
-            ElevatedButton(onPressed: onBtnPostQuitMessage, child: Text('PostQuitMessage')),
-            ElevatedButton(onPressed: onBtnKnownFolder, child: Text('获取系统文件夹路径')),
-          ],
-        ),
+      body: Column(
+        children: [
+          titleRect(),
+          buttonsRect()
+        ],
       ),
     );
+  }
+
+  Widget titleRect(){
+    return Flexible(child: Container(
+      height: 40,
+      color: Colors.black12,
+      alignment: Alignment.centerRight,
+      child: Wrap(
+        spacing: 5,
+        children: [
+          IconButton(onPressed: minWindow, icon: Icon(Icons.minimize),),
+          IconButton(onPressed: maxWindow, icon: Icon(Icons.web_asset_sharp),),
+          CloseButton(onPressed: ()=>exit(0))
+        ],
+      ),
+    ));
+  }
+
+  Widget buttonsRect(){
+    return Expanded(child: Container(
+      child: Wrap(
+        spacing: 10,
+        children: [
+          ElevatedButton(onPressed: onBtnWindowFromPoint, child: Text('WindowFromPoint')),
+          ElevatedButton(onPressed: onBtnFindWindowEx, child: Text('FindWindowEx')),
+          ElevatedButton(onPressed: onBtnMoveWindow, child: Text('MoveWindow')),
+          ElevatedButton(onPressed: onBtnCenterWindow, child: Text('窗口居中(SetWindowPos)')),
+          ElevatedButton(onPressed: onBtnCloseWindow, child: Text('CloseWindow')),
+          ElevatedButton(onPressed: onBtnPostQuitMessage, child: Text('PostQuitMessage')),
+          ElevatedButton(onPressed: onBtnKnownFolder, child: Text('获取系统文件夹路径')),
+        ],
+      ),
+    ));
   }
 }
