@@ -2,6 +2,8 @@ import 'dart:ffi';
 import 'package:ffi/ffi.dart';
 import 'package:win32/win32.dart';
 import 'package:flutter/material.dart';
+import 'knownfolder.dart';
+
 void main() {
   runApp(MyApp());
 }
@@ -93,6 +95,12 @@ class _HomePageState extends State<HomePage>{
     // exit(0);
   }
 
+  void onBtnKnownFolder() {
+    print('Temporary path is ${getTemporaryPath()}');
+    print('SHGetFolderPath returned ${getFolderPath()}');
+    print('SHGetKnownFolderPath returned ${getKnownFolderPath()}');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -101,7 +109,6 @@ class _HomePageState extends State<HomePage>{
       ),
       body: Center(
         child: Wrap(
-          direction: Axis.vertical,
           spacing: 10,
           children: [
             ElevatedButton(onPressed: onBtnWindowFromPoint, child: Text('WindowFromPoint')),
@@ -109,6 +116,7 @@ class _HomePageState extends State<HomePage>{
             ElevatedButton(onPressed: onBtnMoveWIndow, child: Text('MoveWindow')),
             ElevatedButton(onPressed: onBtnCloseWindow, child: Text('CloseWindow')),
             ElevatedButton(onPressed: onBtnPostQuitMessage, child: Text('PostQuitMessage')),
+            ElevatedButton(onPressed: onBtnKnownFolder, child: Text('获取系统文件夹路径')),
           ],
         ),
       ),
