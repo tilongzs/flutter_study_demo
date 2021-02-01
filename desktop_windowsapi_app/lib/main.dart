@@ -78,10 +78,33 @@ class _HomePageState extends State<HomePage>{
     }
   }
 
+  void onBtnCenterWindow(){
+    if (_hwnd != 0) {
+      // 获取屏幕尺寸
+      int scrWidth = GetSystemMetrics(0); // SM_CXSCREEN
+      int scrHeight = GetSystemMetrics(1);  // SM_CYSCREEN
+
+      // 获取窗体尺寸
+      final rect = allocate<RECT>();
+      GetClientRect(_hwnd, rect);
+      int width = rect.ref.right - rect.ref.left;
+      int height = rect.ref.bottom - rect.ref.top;
+
+      // 计算居中位置
+      int left = ((scrWidth - width) / 2).toInt();
+      int top = ((scrHeight - height) / 2).toInt();
+
+      // 设置窗体位置 （居中显示）
+      MoveWindow(_hwnd, left, top, width, height,  1);
+    }  else {
+      print('_hwnd == 0');
+    }
+  }
+
   void onBtnCloseWindow(){
     if (_hwnd != 0) {
       // 仅仅关闭窗口，Flutter桌面进程仍在运行，因此不能用来关闭Flutter桌面进程！
-      SendMessage(_hwnd, WM_CLOSE, 0, 0);
+      // SendMessage(_hwnd, WM_CLOSE, 0, 0);
     }  else {
       print('_hwnd == 0');
     }
@@ -114,6 +137,7 @@ class _HomePageState extends State<HomePage>{
             ElevatedButton(onPressed: onBtnWindowFromPoint, child: Text('WindowFromPoint')),
             ElevatedButton(onPressed: onBtnFindWindowEx, child: Text('FindWindowEx')),
             ElevatedButton(onPressed: onBtnMoveWIndow, child: Text('MoveWindow')),
+            ElevatedButton(onPressed: onBtnCenterWindow, child: Text('窗口居中')),
             ElevatedButton(onPressed: onBtnCloseWindow, child: Text('CloseWindow')),
             ElevatedButton(onPressed: onBtnPostQuitMessage, child: Text('PostQuitMessage')),
             ElevatedButton(onPressed: onBtnKnownFolder, child: Text('获取系统文件夹路径')),
