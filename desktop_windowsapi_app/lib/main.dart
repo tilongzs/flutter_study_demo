@@ -40,15 +40,16 @@ class _HomePageState extends State<HomePage>{
   }
 
   void onBtnWindowFromPoint(){
-    final cursorPoint = allocate<POINT>();
+    Pointer<POINT> cursorPoint = calloc<POINT>();
     int isSucess = GetCursorPos(cursorPoint);
     if (isSucess != 0) {
       print('GetCursorPos success x:${cursorPoint.ref.x} y:${cursorPoint.ref.y}');
 
+      // 测试手动修改光标位置
       cursorPoint.ref.x = 100;
       cursorPoint.ref.y = 100;
 
-      _hwnd = WindowFromPoint(cursorPoint.address);
+      _hwnd = WindowFromPoint(cursorPoint.ref);
       if (_hwnd != 0) {
         print('WindowFromPoint success');
       } else {
@@ -59,7 +60,7 @@ class _HomePageState extends State<HomePage>{
       print('GetCursorPos failed');
     }
 
-    free(cursorPoint);
+    calloc.free(cursorPoint);
   }
 
   void onBtnFindWindowEx(){
@@ -73,7 +74,8 @@ class _HomePageState extends State<HomePage>{
 
   void onBtnMoveWindow(){
     if (_hwnd != 0) {
-      MoveWindow(_hwnd, 100, 100, 200, 200, 1);
+      // 当前版本修改窗口大小会导致窗口无响应！需要进一步测试验证
+      MoveWindow(_hwnd, 100, 100, 600, 400, 1);
     }  else {
       print('_hwnd == 0');
     }
@@ -86,7 +88,7 @@ class _HomePageState extends State<HomePage>{
       int scrHeight = GetSystemMetrics(1);  // SM_CYSCREEN
 
       // 获取窗体客户区尺寸（客户区尺寸小于窗口尺寸）
-      final rect = allocate<RECT>();
+      final rect = calloc<RECT>();
       GetClientRect(_hwnd, rect);
       int width = rect.ref.right - rect.ref.left;
       int height = rect.ref.bottom - rect.ref.top;
@@ -136,6 +138,15 @@ class _HomePageState extends State<HomePage>{
     print('SHGetKnownFolderPath returned ${getKnownFolderPath()}');
   }
 
+  void onBtnNoframe(){
+    if (_hwnd != 0) {
+      // 仅仅关闭窗口，Flutter桌面进程仍在运行，因此不能用来关闭Flutter桌面进程！
+      // SendMessage(_hwnd, WM_CLOSE, 0, 0);
+    }  else {
+      print('_hwnd == 0');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -179,6 +190,7 @@ class _HomePageState extends State<HomePage>{
           ElevatedButton(onPressed: onBtnCloseWindow, child: Text('CloseWindow')),
           ElevatedButton(onPressed: onBtnPostQuitMessage, child: Text('PostQuitMessage')),
           ElevatedButton(onPressed: onBtnKnownFolder, child: Text('获取系统文件夹路径')),
+          ElevatedButton(onPressed: onBtnNoframe, child: Text('窗口无边框')),
         ],
       ),
     ));
