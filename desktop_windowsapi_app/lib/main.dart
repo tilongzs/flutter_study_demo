@@ -161,6 +161,23 @@ class _HomePageState extends State<HomePage>{
     }
   }
 
+  void onBtnLoadTestDll(){
+    final dllTest = DynamicLibrary.open('DllTest.dll');
+    if (dllTest != null) {
+      final Substract = dllTest.lookupFunction<
+          Int32 Function(Int32 a, Int32 b),
+          int Function(int a, int b)>('Substract');
+
+      if (Substract != null) {
+        print('查找Substract函数成功 500-400:${Substract(500, 400)}');
+      }else{
+        print('查找Substract函数失败');
+      }
+    } else {
+      print('加载DllTest.dll失败');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -206,6 +223,7 @@ class _HomePageState extends State<HomePage>{
           ElevatedButton(onPressed: onBtnPostQuitMessage, child: Text('PostQuitMessage')),
           ElevatedButton(onPressed: onBtnKnownFolder, child: Text('获取系统文件夹路径')),
           ElevatedButton(onPressed: onBtnNoframe, child: Text('窗口无边框')),
+          ElevatedButton(onPressed: onBtnLoadTestDll, child: Text('加载自定义dll')),
         ],
       ),
     ));
