@@ -31,12 +31,26 @@ class HomePage extends StatefulWidget{
 
 class _HomePageState extends State<HomePage>{
   int _hwnd = 0;
+  Pointer<POINT> _drawgBeginCursorPoint;  // 拖动窗口的起始光标位置
+  Pointer<POINT> _drawgCursorPoint;  // 拖动窗口的实时光标位置
+  Pointer<RECT> _dragBeginRect; // 拖动窗口的起始窗口位置
 
   @override
   void initState() {
     super.initState();
 
+    _drawgBeginCursorPoint = calloc<POINT>();
+    _drawgCursorPoint = calloc<POINT>();
+    _dragBeginRect = calloc<RECT>();
     onBtnFindWindowEx();
+  }
+
+  @override
+  void dispose() {
+    calloc.free(_drawgBeginCursorPoint);
+    calloc.free(_drawgCursorPoint);
+    calloc.free(_dragBeginRect);
+    super.dispose();
   }
 
   void onBtnWindowFromPoint(){
@@ -183,6 +197,7 @@ class _HomePageState extends State<HomePage>{
       child: Wrap(
         spacing: 10,
         children: [
+          dragMoveWindowRect(),
           ElevatedButton(onPressed: onBtnWindowFromPoint, child: Text('WindowFromPoint')),
           ElevatedButton(onPressed: onBtnFindWindowEx, child: Text('FindWindowEx')),
           ElevatedButton(onPressed: onBtnMoveWindow, child: Text('MoveWindow')),
@@ -194,5 +209,44 @@ class _HomePageState extends State<HomePage>{
         ],
       ),
     ));
+  }
+
+  // 鼠标拖动移动窗口
+  Widget dragMoveWindowRect(){
+    return GestureDetector(
+      child: Container(
+        width: 150,
+        height: 40,
+        alignment: Alignment.center,
+        color: Colors.yellow,
+        child: Text('鼠标按下拖动窗口'),
+      ),
+      onHorizontalDragStart: (DragStartDetails details){
+        int isSucess = GetCursorPos(_drawgBeginCursorPoint);
+        if (isSucess != 0) {
+          print('_drawgBeginCursorPoint:${_drawgBeginCursorPoint.ref.x},${_drawgBeginCursorPoint.ref.y}');
+        }
+
+        if (_hwnd != 0) {
+          GetWindowRect(_hwnd, _dragBeginRect);
+          print('_dragBeginRect:${_dragBeginRect.ref.left},${_dragBeginRect.ref.top},${_dragBeginRect.ref.right},${_dragBeginRect.ref.bottom}');
+        }
+
+        //print('onHorizontalDragStart: globalPosition:${details.globalPosition} localPosition:${details.localPosition}');
+      },
+      onHorizontalDragUpdate: (DragUpdateDetails details){
+        if (_hwnd != 0) {
+          GetCursorPos(_drawgCursorPoint);
+          int newLeft = _dragBeginRect.ref.left + _drawgCursorPoint.ref.x - _drawgBeginCursorPoint.ref.x;
+          int newTop = _dragBeginRect.ref.top + _drawgCursorPoint.ref.y - _drawgBeginCursorPoint.ref.y;
+          SetWindowPos(_hwnd, 0, newLeft.toInt(), newTop.toInt(), 0, 0, 1 | 4/*SWP_NOSIZE | SWP_NOZORDER*/);
+          print('newLeft:$newLeft, newTop:$newTop');
+        }
+        //print('DragUpdateDetails: globalPosition:${details.globalPosition} localPosition:${details.localPosition}');
+      },
+      onHorizontalDragEnd:  (DragEndDetails details){
+        print('onHorizontalDragEnd');
+      },
+    );
   }
 }
