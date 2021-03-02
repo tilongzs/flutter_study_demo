@@ -88,7 +88,6 @@ class _HomePageState extends State<HomePage>{
 
   void onBtnMoveWindow(){
     if (_hwnd != 0) {
-      // 当前版本修改窗口大小会导致窗口无响应！需要进一步测试验证
       MoveWindow(_hwnd, 100, 100, 600, 400, 1);
     }  else {
       print('_hwnd == 0');
@@ -154,8 +153,7 @@ class _HomePageState extends State<HomePage>{
 
   void onBtnNoframe(){
     if (_hwnd != 0) {
-      // 仅仅关闭窗口，Flutter桌面进程仍在运行，因此不能用来关闭Flutter桌面进程！
-      // SendMessage(_hwnd, WM_CLOSE, 0, 0);
+      SetWindowLongPtr(_hwnd, -16/*GWL_STYLE*/, WS_CLIPCHILDREN | WS_POPUP | WS_VISIBLE);
     }  else {
       print('_hwnd == 0');
     }
