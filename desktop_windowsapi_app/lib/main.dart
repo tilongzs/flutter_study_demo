@@ -176,6 +176,82 @@ class _HomePageState extends State<HomePage>{
     }
   }
 
+  void onBtnSelectFile() {
+    // 复制自win32\example\dialogshow.dart
+    var hr = CoInitializeEx(
+        nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+
+    if (SUCCEEDED(hr)) {
+      final fileDialog = FileOpenDialog.createInstance();
+
+      final pfos = calloc<Uint32>();
+      hr = fileDialog.GetOptions(pfos);
+      if (!SUCCEEDED(hr)) throw WindowsException(hr);
+
+      final options = pfos.value | FILEOPENDIALOGOPTIONS.FOS_FORCEFILESYSTEM;
+      hr = fileDialog.SetOptions(options);
+      if (!SUCCEEDED(hr)) throw WindowsException(hr);
+
+      hr = fileDialog.SetDefaultExtension(TEXT('txt;csv'));
+      if (!SUCCEEDED(hr)) throw WindowsException(hr);
+
+      hr = fileDialog.SetFileNameLabel(TEXT('Custom Label:'));
+      if (!SUCCEEDED(hr)) throw WindowsException(hr);
+
+      hr = fileDialog.SetTitle(TEXT('Custom Title:'));
+      if (!SUCCEEDED(hr)) throw WindowsException(hr);
+
+      hr = fileDialog.SetOkButtonLabel(TEXT('Go'));
+      if (!SUCCEEDED(hr)) throw WindowsException(hr);
+
+      final rgSpec = calloc<COMDLG_FILTERSPEC>(3);
+      rgSpec[0]
+        ..pszName = TEXT('JPEG Files')
+        ..pszSpec = TEXT('*.jpg;*.jpeg');
+      rgSpec[1]
+        ..pszName = TEXT('Bitmap Files')
+        ..pszSpec = TEXT('*.bmp');
+      rgSpec[2]
+        ..pszName = TEXT('所有文件 (*.*)')
+        ..pszSpec = TEXT('*.*');
+      hr = fileDialog.SetFileTypes(3, rgSpec);
+      if (!SUCCEEDED(hr)) throw WindowsException(hr);
+
+      hr = fileDialog.Show(NULL);
+      if (!SUCCEEDED(hr)) {
+        if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED)) {
+          print('Dialog cancelled.');
+        } else {
+          throw WindowsException(hr);
+        }
+      } else {
+        final ppsi = calloc<IntPtr>();
+        hr = fileDialog.GetResult(ppsi);
+        if (!SUCCEEDED(hr)) throw WindowsException(hr);
+
+        final item = IShellItem(ppsi.cast());
+        final pathPtr = calloc<IntPtr>();
+        hr = item.GetDisplayName(SIGDN.SIGDN_FILESYSPATH, pathPtr.cast());
+        if (!SUCCEEDED(hr)) throw WindowsException(hr);
+
+        final path = Pointer<Utf16>.fromAddress(pathPtr.value);
+
+        // MAX_PATH may truncate early if long filename support is enabled
+        final pathRes = path.toDartString();
+        print('Result: $pathRes');
+
+        hr = item.Release();
+        if (!SUCCEEDED(hr)) throw WindowsException(hr);
+      }
+
+      hr = fileDialog.Release();
+      if (!SUCCEEDED(hr)) throw WindowsException(hr);
+    } else {
+      throw WindowsException(hr);
+    }
+    CoUninitialize();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -221,9 +297,10 @@ class _HomePageState extends State<HomePage>{
           ElevatedButton(onPressed: onBtnCloseWindow, child: Text('CloseWindow')),
           ElevatedButton(onPressed: onBtnPostQuitMessage, child: Text('PostQuitMessage')),
           ElevatedButton(onPressed: onBtnKnownFolder, child: Text('获取系统文件夹路径')),
-          ElevatedButton(onPressed: onBtnNoframe, child: Text('窗口无边框')),
+          ElevatedButton(onPressed: onBtnNoframe, child: Text('窗口无边框(SetWindowLongPtr)')),
           ElevatedButton(onPressed: onBtnLoadTestDll, child: Text('加载自定义dll')),
           pointerMsgRect(),
+          ElevatedButton(onPressed: onBtnSelectFile, child: Text('选择文件')),
         ],
       ),
     ));
