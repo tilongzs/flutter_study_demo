@@ -211,6 +211,7 @@ class _HomePageState extends State<HomePage>{
     return Expanded(child: Container(
       child: Wrap(
         spacing: 10,
+        runSpacing: 10,
         children: [
           dragMoveWindowRect(),
           ElevatedButton(onPressed: onBtnWindowFromPoint, child: Text('WindowFromPoint')),
@@ -222,6 +223,7 @@ class _HomePageState extends State<HomePage>{
           ElevatedButton(onPressed: onBtnKnownFolder, child: Text('获取系统文件夹路径')),
           ElevatedButton(onPressed: onBtnNoframe, child: Text('窗口无边框')),
           ElevatedButton(onPressed: onBtnLoadTestDll, child: Text('加载自定义dll')),
+          pointerMsgRect(),
         ],
       ),
     ));
@@ -232,7 +234,7 @@ class _HomePageState extends State<HomePage>{
     return GestureDetector(
       child: Container(
         width: 150,
-        height: 40,
+        height: 30,
         alignment: Alignment.center,
         color: Colors.yellow,
         child: Text('鼠标按下拖动窗口'),
@@ -263,6 +265,28 @@ class _HomePageState extends State<HomePage>{
       onHorizontalDragEnd:  (DragEndDetails details){
         print('onHorizontalDragEnd');
       },
+    );
+  }
+
+  // 鼠标按键消息
+  Widget pointerMsgRect(){
+    return Listener(
+      onPointerDown: (event){
+        print('鼠标${event.buttons}键按下');
+      },
+      child: Container(
+        alignment: Alignment.center,
+        width: 100,
+        height: 30,
+        color: Colors.yellow,
+        child: Text('鼠标按下事件'),
+      ),
+      // child: ElevatedButton(
+      //   child: Text('鼠标'),
+      //   onPressed: (){
+      //     print('pointerMsgRect onPressed');
+      //   },
+      // ),
     );
   }
 }
