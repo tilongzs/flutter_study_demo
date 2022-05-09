@@ -3,8 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:wifi_ip/wifi_ip.dart';
-import 'package:buffer/buffer.dart';
+import 'package:network_info_plus/network_info_plus.dart';
 
 void main() {
   runApp(MyApp());
@@ -110,9 +109,9 @@ class _HomePageState extends State<HomePage> {
       body: Center(
         child: Column(
           children: [
-            createRecvMsgListview(), // 接收消息列表框
-            createIPSettingRect(), // 设置IP、端口区域
-            createSendMsgRect(), // 发送消息区域
+            recvMsgListview(), // 接收消息列表框
+            IPSettingRect(), // 设置IP、端口区域
+            sendMsgRect(), // 发送消息区域
           ],
         ),
       ),
@@ -122,22 +121,21 @@ class _HomePageState extends State<HomePage> {
   // 获取本机局域网IP
   void initIP() async{
     try {
-      WifiIpInfo wifiInfo;
-      wifiInfo = await WifiIp.getWifiIp;
-      _localIP = wifiInfo.ip;
+      final wifiInfo = NetworkInfo();
+      _localIP = await wifiInfo.getWifiIP();
+
+      setState(() {
+        _IPTxtController.text = _localIP;
+      });
     } on PlatformException {
-      print('Failed to get broadcast IP.');
+      print('尝试获取本机局域网IP异常.');
     } catch (e) {
       printLog('尝试获取本机局域网IP异常，e=${e.toString()}');
     }
-
-    setState(() {
-      _IPTxtController.text = _localIP;
-    });
   }
 
   // 接收消息列表框
-  Widget createRecvMsgListview() {
+  Widget recvMsgListview() {
     return Container(
       margin: EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -150,7 +148,7 @@ class _HomePageState extends State<HomePage> {
       child: Stack(
         alignment: Alignment.topRight,
         children: [
-          createMsgListview(), // 消息列表
+          msgListview(), // 消息列表
           Container(
             // 滚动条
             alignment: Alignment(1, _recvMsgScrollbarAlignmentY),
@@ -170,11 +168,10 @@ class _HomePageState extends State<HomePage> {
     var serverIP = _IPTxtController.text;
     var serverPot = int.parse(_portTxtController.text);
     try {
-      _serverSocket = await ServerSocket.bind(
-          InternetAddress.tryParse(serverIP), serverPot);
+      _serverSocket = await ServerSocket.bind(InternetAddress.tryParse(serverIP), serverPot);
 
       // 开始监听
-      _serverSocket.listen(onServerSocketData, onError: onSocketError, onDone: onServerSocketDone);
+      _serverSocket.listen(onServerSocketData, onError: onSocketError, onDone: onServerSocketDone, cancelOnError: true);
       setState(() {});
       printLog('开始监听');
     } catch (e) {
@@ -229,19 +226,19 @@ class _HomePageState extends State<HomePage> {
     printLog('与服务端已连接的socket出现错误，error=${error.toString()}');
   }
 
-  Widget createIPSettingRect() {
+  Widget IPSettingRect() {
     Function createConnectButton = () {
       return Wrap(
         spacing: 10,
         children: [
-          RaisedButton(onPressed: onBtnListen, child: Text('监听')),
-          RaisedButton(onPressed: onBtnConnectToServer, child: Text('连接'))
+          ElevatedButton(onPressed: onBtnListen, child: Text('监听')),
+          ElevatedButton(onPressed: onBtnConnectToServer, child: Text('连接'))
         ],
       );
     };
 
     Function createDisconnectButton = () {
-      return RaisedButton(
+      return ElevatedButton(
           onPressed: () {
             // 断开已连接的socket
             if (_connectedSocket != null) {
@@ -364,7 +361,7 @@ class _HomePageState extends State<HomePage> {
     _connectedSocket.add(byteData.buffer.asUint8List());
   }
 
-  Widget createSendMsgRect() {
+  Widget sendMsgRect() {
     return Container(
       margin: EdgeInsets.all(10),
       child: Column(
@@ -395,9 +392,9 @@ class _HomePageState extends State<HomePage> {
           Wrap(
             spacing: 10,
             children: [
-              RaisedButton(onPressed: onBtnSendMsg, child: Text('发送消息')),
-              RaisedButton(onPressed: onBtnSendmultipleMsg, child: Text('发送多条消息')),
-              RaisedButton(onPressed: onBtnSendBigBuffer, child: Text('发送大缓存数据')),
+              ElevatedButton(onPressed: onBtnSendMsg, child: Text('发送消息')),
+              ElevatedButton(onPressed: onBtnSendmultipleMsg, child: Text('发送多条消息')),
+              ElevatedButton(onPressed: onBtnSendBigBuffer, child: Text('发送大缓存数据')),
             ],
           ),
         ],
@@ -423,7 +420,7 @@ class _HomePageState extends State<HomePage> {
     return true;
   }
 
-  Widget createMsgListview() {
+  Widget msgListview() {
     return NotificationListener<ScrollNotification>(
       onNotification: _handleScrollNotification,
       child: ListView.builder(
