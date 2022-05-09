@@ -53,8 +53,7 @@ class _HomePageState extends State<HomePage>{
             SizedBox(
               width: 200,
               height: 50,
-              child: RaisedButton(
-                  color: Colors.amberAccent,
+              child: ElevatedButton(
                   onPressed: () async{
                     _count = await compute(countFunc, 1000000000);
                    //  _count = await isolateCountFunc(1000000000);
@@ -81,14 +80,14 @@ class _HomePageState extends State<HomePage>{
 
   static Future<dynamic> isolateCountFunc(int num) async {
     // 获取处理函数的SendPort
-    final receivePort = ReceivePort();
-    await Isolate.spawn(isolateCountProc, receivePort.sendPort);
-    final procPort = await receivePort.first; //  获取到处理函数的SendPort，receivePort不能继续使用
+    final initReceivePort = ReceivePort();
+    await Isolate.spawn(isolateCountProc, initReceivePort.sendPort);
+    final procSendPort = await initReceivePort.first; //  获取到处理函数的SendPort，receivePort不能继续使用
 
     // 向处理函数发送处理请求
-    final answer = ReceivePort();
-    procPort.send([answer.sendPort, num]);
-    return answer.first;
+    final requestReceivePort = ReceivePort();
+    procSendPort.send([requestReceivePort.sendPort, num]);
+    return requestReceivePort.first;
   }
 
   // 处理函数
@@ -104,14 +103,13 @@ class _HomePageState extends State<HomePage>{
       return count;
     };
 
-    final rPort = ReceivePort();
-    rPort.listen((message) {
-      final send = message[0] as SendPort;
-      final n = message[1] as int;
-      send.send(countFunc(n));
+    final responseReceivePort = ReceivePort();
+    responseReceivePort.listen((request) {
+      final requestSendPort = request[0] as SendPort;
+      final num = request[1] as int;
+      requestSendPort.send(countFunc(num));
     });
 
-    port.send(rPort.sendPort);
+    port.send(responseReceivePort.sendPort);
   }
-
 }
