@@ -1,4 +1,10 @@
+import 'dart:convert';
+import 'dart:html';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:getsocket/getsocket.dart';
+import 'package:sprintf/sprintf.dart';
 
 void main() {
   runApp(const MyApp());
@@ -32,31 +38,63 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   final List<String> _recvMsg = []; // 接收到的消息
 
+  GetSocket? _websocket;
+
   TextEditingController _sendMsgController = TextEditingController(); //  发送消息文本控制器
-  TextEditingController _serverTxtController = TextEditingController(); //  连接服务器文本控制器
+  TextEditingController _ipTxtController = TextEditingController(); //  连接服务器文本控制器
   TextEditingController _portTxtController = TextEditingController(); //  连接服务器端口文本控制器
 
   // 连接到Server
   void onBtnConnectToServer() async {
-    // var serverIP = _IPTxtController.text;
-    // var serverPot = int.parse(_portTxtController.text);
-    // try {
-    //   _connectedSocket = await Socket.connect(serverIP, serverPot, timeout: Duration(milliseconds: 500));
-    //   _connectedSocket.listen(onSocketData, onError: onSocketError, onDone: onSocketDone);
-    //
-    //   printLog('与服务端建立连接');
-    //   setState(() {});
-    // } catch (e) {
-    //   printLog('连接socket出现异常，e=${e.toString()}');
-    // }
+    var serverIP = _ipTxtController.text;
+    var serverPot = int.parse(_portTxtController.text);
+    String uri = sprintf("http://%s:%d/websocket", [serverIP, serverPot]);
+    _websocket = GetSocket(uri);
+    if(_websocket == null){
+      printLog('创建websocket失败');
+      return;
+    }
+
+    _websocket?.onOpen(() {
+      printLog('与服务端建立连接成功');
+    });
+
+    _websocket?.onMessage((data) {
+      var blobData = data as Blob;
+      int dataSize = blobData.size;
+      printLog('收到数据: $dataSize字节');
+    });
+
+    _websocket?.onClose((close) {
+      printLog('与服务端建立连接断开');
+      _websocket?.dispose();
+    });
+
+    _websocket?.onError((e) {
+      printLog('与服务端建立连接发生错误');
+    });
+
+    _websocket?.on('event', (val) {
+      printLog(val);
+    });
+
+    // 开始连接
+    _websocket?.connect();
+  }
+
+  // 断开连接
+  void onBtnDisconnectToServer(){
+    if(_websocket != null){
+      _websocket?.close();
+    }
+
+    setState(() {});
   }
 
   // 发送消息
   void onBtnSendMsg() async {
     if (_sendMsgController.text.isNotEmpty) {
-      // if (_connectedSocket != null) {
-      //   _connectedSocket.add(utf8.encode(_sendMsgController.text)); // 发送UTF8数据
-      // }
+      _websocket?.send(utf8.encode(_sendMsgController.text));
 
       _sendMsgController.text = '';
       setState(() {});
@@ -65,7 +103,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void initState() {
-    _serverTxtController.text = 'ws://127.0.0.1';
+    _ipTxtController.text = '127.0.0.1';
     _portTxtController.text = '23300';
 
     super.initState();
@@ -118,21 +156,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     Function createDisconnectButton = () {
       return ElevatedButton(
-          onPressed: () {
-            // 断开已连接的socket
-            // if (_connectedSocket != null) {
-            //   _connectedSocket.close();
-            //   _connectedSocket = null;
-            // }
-            //
-            // // 断开监听socket
-            // if (_serverSocket != null) {
-            //   _serverSocket.close();
-            //   _serverSocket = null;
-            // }
-
-            setState(() {});
-          },
+          onPressed: onBtnDisconnectToServer,
           child: Text('断开连接'));
     };
 
@@ -161,7 +185,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   children: [
                     TextField(
                       maxLines: 1,
-                      controller: _serverTxtController,
+                      controller: _ipTxtController,
                       decoration: InputDecoration(border: InputBorder.none),
                     ),
                   ],
@@ -198,11 +222,10 @@ class _MyHomePageState extends State<MyHomePage> {
             ],
           ),
 
-          // 按钮
-          createConnectButton(),
-          // (_connectedSocket != null || _serverSocket != null)
-          //     ? createDisconnectButton()
-          //     : createConnectButton(),
+          // 连接按钮
+          (_websocket != null)
+              ? createDisconnectButton()
+              : createConnectButton(),
         ],
       ),
     );
