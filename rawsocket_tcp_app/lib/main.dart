@@ -283,14 +283,14 @@ class _HomePageState extends State<HomePage> {
       return Wrap(
         spacing: 10,
         children: [
-          RaisedButton(onPressed: onBtnListen, child: Text('监听')),
-          RaisedButton(onPressed: onBtnConnectToServer, child: Text('连接'))
+          ElevatedButton(onPressed: onBtnListen, child: Text('监听')),
+          ElevatedButton(onPressed: onBtnConnectToServer, child: Text('连接'))
         ],
       );
     };
 
     Function createDisconnectButton = () {
-      return RaisedButton(
+      return ElevatedButton(
           onPressed: () {
             // 断开已连接的socket
             if (_connectedSocket != null) {
@@ -447,8 +447,8 @@ class _HomePageState extends State<HomePage> {
           Wrap(
             spacing: 10,
             children: [
-              RaisedButton(onPressed: onBtnSendMsg, child: Text('发送消息')),
-              RaisedButton(onPressed: onBtnSendBigBuffer, child: Text('发送大缓存数据')),
+              ElevatedButton(onPressed: onBtnSendMsg, child: Text('发送消息')),
+              ElevatedButton(onPressed: onBtnSendBigBuffer, child: Text('发送大缓存数据')),
             ],
           ),
         ],

@@ -68,6 +68,7 @@ class _MyHomePageState extends State<MyHomePage> {
     _websocket?.onClose((close) {
       printLog('与服务端建立连接断开');
       _websocket?.dispose();
+      _websocket = null;
     });
 
     _websocket?.onError((e) {
