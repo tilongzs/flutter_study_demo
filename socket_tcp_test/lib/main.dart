@@ -80,9 +80,9 @@ class _HomePageState extends State<HomePage> {
   double _recvMsgMaxScrollExtent = 0;
   final _recvMsgListHeight = 200.0;
 
-  String _localIP = '127.0.0.1';  //本机局域网IP
+  String _localIP = '127.0.0.1'; //本机局域网IP
   Socket _connectedSocket = null; // 已建立连接的socket
-  ServerSocket _serverSocket = null;  // 服务器监听socket
+  ServerSocket _serverSocket = null; // 服务器监听socket
 
   TextEditingController _sendMsgController =
       TextEditingController(); //  发送消息文本控制器
@@ -97,7 +97,7 @@ class _HomePageState extends State<HomePage> {
 
     _IPTxtController.text = _localIP;
     _portTxtController.text = '23300';
-    initIP();  // 尝试获取本机局域网IP
+    initIP(); // 尝试获取本机局域网IP
   }
 
   @override
@@ -119,7 +119,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // 获取本机局域网IP
-  void initIP() async{
+  void initIP() async {
     try {
       final wifiInfo = NetworkInfo();
       _localIP = await wifiInfo.getWifiIP();
@@ -168,10 +168,14 @@ class _HomePageState extends State<HomePage> {
     var serverIP = _IPTxtController.text;
     var serverPot = int.parse(_portTxtController.text);
     try {
-      _serverSocket = await ServerSocket.bind(InternetAddress.tryParse(serverIP), serverPot);
+      _serverSocket = await ServerSocket.bind(
+          InternetAddress.tryParse(serverIP), serverPot);
 
       // 开始监听
-      _serverSocket.listen(onServerSocketData, onError: onSocketError, onDone: onServerSocketDone, cancelOnError: true);
+      _serverSocket.listen(onServerSocketData,
+          onError: onSocketError,
+          onDone: onServerSocketDone,
+          cancelOnError: true);
       setState(() {});
       printLog('开始监听');
     } catch (e) {
@@ -184,8 +188,10 @@ class _HomePageState extends State<HomePage> {
     var serverIP = _IPTxtController.text;
     var serverPot = int.parse(_portTxtController.text);
     try {
-      _connectedSocket = await Socket.connect(serverIP, serverPot, timeout: Duration(milliseconds: 500));
-      _connectedSocket.listen(onSocketData, onError: onSocketError, onDone: onSocketDone);
+      _connectedSocket = await Socket.connect(serverIP, serverPot,
+          timeout: Duration(milliseconds: 500));
+      _connectedSocket.listen(onSocketData,
+          onError: onSocketError, onDone: onSocketDone);
 
       printLog('与服务端建立连接');
       setState(() {});
@@ -197,9 +203,11 @@ class _HomePageState extends State<HomePage> {
   // 作为Server有新连接（Accept）
   void onServerSocketData(Socket socket) {
     _connectedSocket = socket;
-    _connectedSocket.listen(onSocketData, onError: onSocketError, onDone: onSocketDone);
+    _connectedSocket.listen(onSocketData,
+        onError: onSocketError, onDone: onSocketDone);
 
-    printLog('有新客户端连接：${_connectedSocket.remoteAddress.address}:${_connectedSocket.remotePort}');
+    printLog(
+        '有新客户端连接：${_connectedSocket.remoteAddress.address}:${_connectedSocket.remotePort}');
   }
 
   // 作为Server停止监听
@@ -271,22 +279,19 @@ class _HomePageState extends State<HomePage> {
               Container(
                 // 端口输入区域
                 width: 200,
-                height: 50,
+                height: 30,
+                alignment: Alignment.centerLeft,
                 decoration: BoxDecoration(
                   border: Border.all(
                     color: Colors.black,
                   ),
                   color: Colors.white,
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    TextField(
-                      maxLines: 1,
-                      controller: _IPTxtController,
-                      decoration: InputDecoration(border: InputBorder.none),
-                    ),
-                  ],
+                child: TextField(
+                  maxLines: 1,
+                  controller: _IPTxtController,
+                  decoration:
+                      InputDecoration(border: InputBorder.none, isDense: true),
                 ),
               ),
             ],
@@ -297,25 +302,20 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Text('主机端口：'),
-              Container(
+              SizedBox(
                 // 端口输入区域
                 width: 100,
-                height: 50,
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: Colors.black,
-                  ),
-                  color: Colors.white,
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    TextField(
-                      maxLines: 1,
-                      controller: _portTxtController,
-                      decoration: InputDecoration(border: InputBorder.none),
-                    ),
-                  ],
+                height: 30,
+                child: TextField(
+                  maxLines: 1,
+                  controller: _portTxtController,
+                  decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: EdgeInsets.fromLTRB(10, 0, 0, 0),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(0)),
+                      )),
                 ),
               ),
             ],
@@ -352,12 +352,12 @@ class _HomePageState extends State<HomePage> {
   }
 
   // 发送大缓存数据
-  void onBtnSendBigBuffer(){
-   /* var dataWriter = ByteDataWriter();
+  void onBtnSendBigBuffer() {
+    /* var dataWriter = ByteDataWriter();
     dataWriter.writeUint8(1); // 1个字节
     _connectedSocket.add(dataWriter.toBytes());*/
 
-    var byteData = ByteData(1024*1024);
+    var byteData = ByteData(1024 * 1024);
     _connectedSocket.add(byteData.buffer.asUint8List());
   }
 
@@ -393,8 +393,10 @@ class _HomePageState extends State<HomePage> {
             spacing: 10,
             children: [
               ElevatedButton(onPressed: onBtnSendMsg, child: Text('发送消息')),
-              ElevatedButton(onPressed: onBtnSendmultipleMsg, child: Text('发送多条消息')),
-              ElevatedButton(onPressed: onBtnSendBigBuffer, child: Text('发送大缓存数据')),
+              ElevatedButton(
+                  onPressed: onBtnSendmultipleMsg, child: Text('发送多条消息')),
+              ElevatedButton(
+                  onPressed: onBtnSendBigBuffer, child: Text('发送大缓存数据')),
             ],
           ),
         ],
