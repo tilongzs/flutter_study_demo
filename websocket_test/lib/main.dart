@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:websocket_universal/websocket_universal.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:web_socket_channel/io.dart';
+import 'package:web_socket_channel/html.dart';
+import 'package:web_socket_channel/status.dart' as status;
 import 'dart:convert';
 
 void main() {
@@ -34,7 +37,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   final List<String> _recvMsg = []; // 接收到的消息
 
-  late IWebSocketHandler<List<int>, List<int>> bytesSocketHandler;
+  late WebSocketChannel _webSocketChannel;
   bool _isConnected = false;
 
   TextEditingController _sendMsgController = TextEditingController(); //  发送消息文本控制器
@@ -42,59 +45,62 @@ class _MyHomePageState extends State<MyHomePage> {
 
   // 连接到Server
   void onBtnConnectToServer() async {
-    String uri = _serverTxtController.text;
-
-    const connectionOptions = SocketConnectionOptions(
-        pingIntervalMs: 3000, // send Ping message every 3000 ms
-        timeoutConnectionMs: 4000, // connection fail timeout after 4000 ms
-        /// see ping/pong messages in [logEventStream] stream
-        skipPingMessages: false,
-
-        /// Set this attribute to `true` if do not need any ping/pong
-        /// messages and ping measurement. Default is `false`
-        pingRestrictionForce: true,
-        failedReconnectionAttemptsLimit: 0
-    );
-
-    /// Example with simple text messages exchanges with server
-    /// (not recommended for applications)
-    /// [<String, String>] generic types mean that we receive [String] messages
-    /// after deserialization and send [String] messages to server.
-    final IMessageProcessor<List<int>, List<int>> bytesSocketProcessor  = SocketSimpleBytesProcessor();
-    bytesSocketHandler = IWebSocketHandler<List<int>, List<int>>.createClient(
-      uri,
-      bytesSocketProcessor,
-      connectionOptions: connectionOptions,
-    );
-
-    // Listening to webSocket status changes
-    bytesSocketHandler.socketHandlerStateStream.listen((stateEvent) {
-      _isConnected = (stateEvent.status == SocketStatus.connected);
-      // ignore: avoid_print
-      printLog('连接状态改变： ${stateEvent.status}');
-    });
-
-    // Listening to server responses:
-    bytesSocketHandler.incomingMessagesStream.listen((inMsg) {
-      // ignore: avoid_print
-      printLog('收到服务端发来的: "${inMsg.length}字节数据" '
-          '[ping: ${bytesSocketHandler.pingDelayMs}]');
-    });
-
-    // 开始连接
-    _isConnected = await bytesSocketHandler.connect();
-    if (!_isConnected) {
-      printLog('连接 [$uri] 失败!');
-      return;
+    final uri = Uri.parse(_serverTxtController.text);
+    _webSocketChannel = WebSocketChannel.connect(uri);
+    if (_webSocketChannel is HtmlWebSocketChannel) {
+      (_webSocketChannel as HtmlWebSocketChannel)
+          .innerWebSocket
+          .onOpen
+          .first
+          .then((value){
+            _isConnected = true;
+            printLog("连接服务端成功");
+      });
     }
+
+    _webSocketChannel.stream.listen(
+        // "dynamic" because dataFromServer can be String or List<int>
+        (dynamic dataFromServer) {
+          if (dataFromServer is List<int>) {
+            printLog("收到二进制数据：共${(dataFromServer as List<int>).length}字节");
+          } else { // dataFromServer is String
+            printLog("收到字符串数据：${dataFromServer}");
+          } // dataFromServer is String
+      }, //  dataFromServer
+
+      onDone: (){
+        // https://api.dart.dev/stable/2.17.3/dart-io/WebSocket/closeReason.html
+        // If there is no close reason available, "webSocketChannel.closeReason" will be null
+        printLog('onDone: Will close WebSocket: ${_webSocketChannel.closeReason}');
+        _webSocketChannel.sink.close();
+        _isConnected = false;
+        setState(() {});
+      },
+
+      onError: (err){
+        // https://api.dart.dev/stable/2.17.3/dart-io/WebSocket/closeReason.html
+        // If there is no close reason available, "webSocketChannel.closeReason" will be null
+        printLog('onError: Will close WebSocket: ${_webSocketChannel.closeReason}');
+        _webSocketChannel.sink.close();
+        _isConnected = false;
+        setState(() {});
+      },
+
+      // https://api.dart.dev/stable/2.17.3/dart-async/Stream/listen.html
+      // If cancelOnError is true, the subscription is automatically canceled
+      // when the first error event is delivered.
+      // The default is false.
+      cancelOnError: false,
+    );
   }
 
   // 断开连接
   void onBtnDisconnectToServer() async{
-    await bytesSocketHandler.disconnect('手动断开连接');
-    // Disposing webSocket:
-    bytesSocketHandler.close();
-    _isConnected = false;
+    // await bytesSocketHandler.disconnect('手动断开连接');
+    // // Disposing webSocket:
+    // bytesSocketHandler.close();
+    _webSocketChannel.sink.close(status.goingAway);
+    //_isConnected = false;
     printLog('手动断开连接');
 
     setState(() {});
@@ -103,10 +109,8 @@ class _MyHomePageState extends State<MyHomePage> {
   // 发送消息
   void onBtnSendMsg() async {
     if (_sendMsgController.text.isNotEmpty) {
-      var sendData = utf8.encode(_sendMsgController.text);
-      bytesSocketHandler.sendMessage(sendData);
-
-      printLog('发送数据${sendData.length}字节');
+      _webSocketChannel.sink.add(_sendMsgController.text);
+      printLog('发送数据${_sendMsgController.text.length}字节');
 
       _sendMsgController.text = '';
       setState(() {});
