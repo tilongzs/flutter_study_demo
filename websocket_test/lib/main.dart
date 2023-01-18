@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:web_socket_channel/io.dart';
-import 'package:web_socket_channel/html.dart';
 import 'package:web_socket_channel/status.dart' as status;
 import 'dart:convert';
 
@@ -47,17 +45,11 @@ class _MyHomePageState extends State<MyHomePage> {
   void onBtnConnectToServer() async {
     final uri = Uri.parse(_serverTxtController.text);
     _webSocketChannel = WebSocketChannel.connect(uri);
-    if (_webSocketChannel is HtmlWebSocketChannel) {
-      (_webSocketChannel as HtmlWebSocketChannel)
-          .innerWebSocket
-          .onOpen
-          .first
-          .then((value){
-            _isConnected = true;
-            printLog("连接服务端成功");
-      });
-    }
 
+    // 处理连接成功状态
+    _webSocketChannel.ready.then((value) => printLog("连接服务端成功"));
+
+    // 处理接收数据、连接断开
     _webSocketChannel.stream.listen(
         // "dynamic" because dataFromServer can be String or List<int>
         (dynamic dataFromServer) {
@@ -66,41 +58,37 @@ class _MyHomePageState extends State<MyHomePage> {
           } else { // dataFromServer is String
             printLog("收到字符串数据：${dataFromServer}");
           } // dataFromServer is String
-      }, //  dataFromServer
+        }, //  dataFromServer
 
-      onDone: (){
-        // https://api.dart.dev/stable/2.17.3/dart-io/WebSocket/closeReason.html
-        // If there is no close reason available, "webSocketChannel.closeReason" will be null
-        printLog('onDone: Will close WebSocket: ${_webSocketChannel.closeReason}');
-        _webSocketChannel.sink.close();
-        _isConnected = false;
-        setState(() {});
-      },
+        onDone: (){
+          // https://api.dart.dev/stable/2.17.3/dart-io/WebSocket/closeReason.html
+          // If there is no close reason available, "webSocketChannel.closeReason" will be null
+          printLog('onDone: Will close WebSocket: ${_webSocketChannel.closeReason}');
+          _webSocketChannel.sink.close();
+          _isConnected = false;
+          setState(() {});
+        },
 
-      onError: (err){
-        // https://api.dart.dev/stable/2.17.3/dart-io/WebSocket/closeReason.html
-        // If there is no close reason available, "webSocketChannel.closeReason" will be null
-        printLog('onError: Will close WebSocket: ${_webSocketChannel.closeReason}');
-        _webSocketChannel.sink.close();
-        _isConnected = false;
-        setState(() {});
-      },
+        onError: (err){
+          // https://api.dart.dev/stable/2.17.3/dart-io/WebSocket/closeReason.html
+          // If there is no close reason available, "webSocketChannel.closeReason" will be null
+          printLog('onError${err}: Will close WebSocket: ${_webSocketChannel.closeReason}');
+          _webSocketChannel.sink.close();
+          _isConnected = false;
+          setState(() {});
+        },
 
-      // https://api.dart.dev/stable/2.17.3/dart-async/Stream/listen.html
-      // If cancelOnError is true, the subscription is automatically canceled
-      // when the first error event is delivered.
-      // The default is false.
-      cancelOnError: false,
+        // https://api.dart.dev/stable/2.17.3/dart-async/Stream/listen.html
+        // If cancelOnError is true, the subscription is automatically canceled
+        // when the first error event is delivered.
+        // The default is false.
+        cancelOnError: false,
     );
   }
 
-  // 断开连接
+  // 手动断开连接
   void onBtnDisconnectToServer() async{
-    // await bytesSocketHandler.disconnect('手动断开连接');
-    // // Disposing webSocket:
-    // bytesSocketHandler.close();
     _webSocketChannel.sink.close(status.goingAway);
-    //_isConnected = false;
     printLog('手动断开连接');
 
     setState(() {});
