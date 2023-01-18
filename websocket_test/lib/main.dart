@@ -1,10 +1,6 @@
-import 'dart:convert';
-import 'dart:html';
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
-import 'package:getsocket/getsocket.dart';
-import 'package:sprintf/sprintf.dart';
+import 'package:websocket_universal/websocket_universal.dart';
+import 'dart:convert';
 
 void main() {
   runApp(const MyApp());
@@ -38,56 +34,68 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   final List<String> _recvMsg = []; // 接收到的消息
 
-  GetSocket? _websocket;
+  late IWebSocketHandler<List<int>, List<int>> bytesSocketHandler;
+  bool _isConnected = false;
 
   TextEditingController _sendMsgController = TextEditingController(); //  发送消息文本控制器
-  TextEditingController _ipTxtController = TextEditingController(); //  连接服务器文本控制器
-  TextEditingController _portTxtController = TextEditingController(); //  连接服务器端口文本控制器
+  TextEditingController _serverTxtController = TextEditingController(); //  连接服务器文本控制器
 
   // 连接到Server
   void onBtnConnectToServer() async {
-    var serverIP = _ipTxtController.text;
-    var serverPot = int.parse(_portTxtController.text);
-    String uri = sprintf("http://%s:%d/websocket", [serverIP, serverPot]);
-    _websocket = GetSocket(uri);
-    if(_websocket == null){
-      printLog('创建websocket失败');
-      return;
-    }
+    String uri = _serverTxtController.text;
 
-    _websocket?.onOpen(() {
-      printLog('与服务端建立连接成功');
+    const connectionOptions = SocketConnectionOptions(
+        pingIntervalMs: 3000, // send Ping message every 3000 ms
+        timeoutConnectionMs: 4000, // connection fail timeout after 4000 ms
+        /// see ping/pong messages in [logEventStream] stream
+        skipPingMessages: false,
+
+        /// Set this attribute to `true` if do not need any ping/pong
+        /// messages and ping measurement. Default is `false`
+        pingRestrictionForce: true,
+        failedReconnectionAttemptsLimit: 0
+    );
+
+    /// Example with simple text messages exchanges with server
+    /// (not recommended for applications)
+    /// [<String, String>] generic types mean that we receive [String] messages
+    /// after deserialization and send [String] messages to server.
+    final IMessageProcessor<List<int>, List<int>> bytesSocketProcessor  = SocketSimpleBytesProcessor();
+    bytesSocketHandler = IWebSocketHandler<List<int>, List<int>>.createClient(
+      uri,
+      bytesSocketProcessor,
+      connectionOptions: connectionOptions,
+    );
+
+    // Listening to webSocket status changes
+    bytesSocketHandler.socketHandlerStateStream.listen((stateEvent) {
+      _isConnected = (stateEvent.status == SocketStatus.connected);
+      // ignore: avoid_print
+      printLog('连接状态改变： ${stateEvent.status}');
     });
 
-    _websocket?.onMessage((data) {
-      var blobData = data as Blob;
-      int dataSize = blobData.size;
-      printLog('收到数据: $dataSize字节');
-    });
-
-    _websocket?.onClose((close) {
-      printLog('与服务端建立连接断开');
-      _websocket?.dispose();
-      _websocket = null;
-    });
-
-    _websocket?.onError((e) {
-      printLog('与服务端建立连接发生错误');
-    });
-
-    _websocket?.on('event', (val) {
-      printLog(val);
+    // Listening to server responses:
+    bytesSocketHandler.incomingMessagesStream.listen((inMsg) {
+      // ignore: avoid_print
+      printLog('收到服务端发来的: "${inMsg.length}字节数据" '
+          '[ping: ${bytesSocketHandler.pingDelayMs}]');
     });
 
     // 开始连接
-    _websocket?.connect();
+    _isConnected = await bytesSocketHandler.connect();
+    if (!_isConnected) {
+      printLog('连接 [$uri] 失败!');
+      return;
+    }
   }
 
   // 断开连接
-  void onBtnDisconnectToServer(){
-    if(_websocket != null){
-      _websocket?.close();
-    }
+  void onBtnDisconnectToServer() async{
+    await bytesSocketHandler.disconnect('手动断开连接');
+    // Disposing webSocket:
+    bytesSocketHandler.close();
+    _isConnected = false;
+    printLog('手动断开连接');
 
     setState(() {});
   }
@@ -95,7 +103,10 @@ class _MyHomePageState extends State<MyHomePage> {
   // 发送消息
   void onBtnSendMsg() async {
     if (_sendMsgController.text.isNotEmpty) {
-      _websocket?.send(utf8.encode(_sendMsgController.text));
+      var sendData = utf8.encode(_sendMsgController.text);
+      bytesSocketHandler.sendMessage(sendData);
+
+      printLog('发送数据${sendData.length}字节');
 
       _sendMsgController.text = '';
       setState(() {});
@@ -104,8 +115,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void initState() {
-    _ipTxtController.text = '127.0.0.1';
-    _portTxtController.text = '23300';
+    _serverTxtController.text = 'ws://127.0.0.1:23300/websocket';
 
     super.initState();
   }
@@ -173,7 +183,7 @@ class _MyHomePageState extends State<MyHomePage> {
             children: [
               Text('服务端地址：'),
               Container(
-                width: 200,
+                width: 400,
                 height: 50,
                 decoration: BoxDecoration(
                   border: Border.all(
@@ -186,35 +196,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   children: [
                     TextField(
                       maxLines: 1,
-                      controller: _ipTxtController,
-                      decoration: InputDecoration(border: InputBorder.none),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          // 端口
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text('主机端口：'),
-              Container(
-                width: 100,
-                height: 50,
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: Colors.black,
-                  ),
-                  color: Colors.white,
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    TextField(
-                      maxLines: 1,
-                      controller: _portTxtController,
+                      controller: _serverTxtController,
                       decoration: InputDecoration(border: InputBorder.none),
                     ),
                   ],
@@ -224,7 +206,7 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
 
           // 连接按钮
-          (_websocket != null)
+          _isConnected
               ? createDisconnectButton()
               : createConnectButton(),
         ],
@@ -274,8 +256,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
   // 打印日志
   void printLog(String log) {
-    print(log);
-    _recvMsg.add(log);
+    String finalLog = DateTime.now().toString() +" " + log;
+    print(finalLog);
+    _recvMsg.add(finalLog);
     setState(() {});
   }
 }
