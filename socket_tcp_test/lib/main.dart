@@ -29,67 +29,17 @@ class HomePage extends StatefulWidget {
   }
 }
 
-// 自定义滚动条
-class _ScrollBar extends StatelessWidget {
-  double _viewHeight = 1;
-  double _parentHeight = 1;
-
-  _ScrollBar(double viewHeight, double parentHeight) {
-    _viewHeight = viewHeight;
-    _parentHeight = parentHeight;
-  }
-
-  double GenerateHeight() {
-    if (_viewHeight == 0) {
-      return 0;
-    } else {
-      double height = _parentHeight * _parentHeight / _viewHeight;
-      return height < 50 ? 50 : height;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 18,
-      height: GenerateHeight(),
-      decoration: BoxDecoration(
-          shape: BoxShape.rectangle,
-          borderRadius: BorderRadius.all(Radius.circular(20)),
-          color: Colors.blue),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          Icon(
-            Icons.arrow_drop_up,
-            size: 18,
-          ),
-          Icon(
-            Icons.arrow_drop_down,
-            size: 18,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _HomePageState extends State<HomePage> {
-  final List<String> _recvMsg = []; // 接收到的消息
-  double _recvMsgScrollbarAlignmentY = -1; // 范围-1~1
-  double _recvMsgMaxScrollExtent = 0;
   final _recvMsgListHeight = 200.0;
 
   String _localIP = '127.0.0.1'; //本机局域网IP
-  Socket _connectedSocket = null; // 已建立连接的socket
-  ServerSocket _serverSocket = null; // 服务器监听socket
+  Socket? _connectedSocket = null; // 已建立连接的socket
+  ServerSocket? _serverSocket = null; // 服务器监听socket
 
-  TextEditingController _sendMsgController =
-      TextEditingController(); //  发送消息文本控制器
-  TextEditingController _IPTxtController =
-      TextEditingController(); //  连接服务器IP文本控制器
-  TextEditingController _portTxtController =
-      TextEditingController(); //  连接服务器端口文本控制器
+  TextEditingController _recvMsgController = TextEditingController(); //  接收消息文本控制器
+  TextEditingController _sendMsgController = TextEditingController(); //  发送消息文本控制器
+  TextEditingController _IPTxtController = TextEditingController(); //  连接服务器IP文本控制器
+  TextEditingController _portTxtController = TextEditingController(); //  连接服务器端口文本控制器
 
   @override
   void initState() {
@@ -122,11 +72,10 @@ class _HomePageState extends State<HomePage> {
   void initIP() async {
     try {
       final wifiInfo = NetworkInfo();
-      _localIP = await wifiInfo.getWifiIP();
-
-      setState(() {
-        _IPTxtController.text = _localIP;
-      });
+      String? localIP = await wifiInfo.getWifiIP();
+      if(localIP != null){
+        printLog('获取到本地IP：${localIP}');
+      }
     } on PlatformException {
       print('尝试获取本机局域网IP异常.');
     } catch (e) {
@@ -137,28 +86,31 @@ class _HomePageState extends State<HomePage> {
   // 接收消息列表框
   Widget recvMsgListview() {
     return Container(
-      margin: EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: Colors.black,
-        ),
-        color: Colors.black12,
-      ),
-      height: _recvMsgListHeight,
-      child: Stack(
-        alignment: Alignment.topRight,
-        children: [
-          msgListview(), // 消息列表
-          Container(
-            // 滚动条
-            alignment: Alignment(1, _recvMsgScrollbarAlignmentY),
-            padding: EdgeInsets.only(right: 5),
-            child: _ScrollBar(_recvMsgMaxScrollExtent + _recvMsgListHeight,
-                _recvMsgListHeight),
+          margin: EdgeInsets.all(10),
+          height: _recvMsgListHeight,
+          child: TextField(
+            keyboardType: TextInputType.multiline,
+            maxLines: null,
+            expands: true,
+            readOnly: true,
+            controller: _recvMsgController,
+            textAlignVertical: TextAlignVertical.top,
+            decoration: const InputDecoration(
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              isDense: true,
+              border: const OutlineInputBorder(
+                gapPadding: 0,
+                borderRadius: const BorderRadius.all(Radius.circular(5)),
+                borderSide: BorderSide(
+                  width: 1,
+                  style: BorderStyle.none,
+                ),
+              ),
+            ),
           )
-        ],
-      ),
-    );
+      );
   }
   /*****************************************************************************/
 
@@ -172,7 +124,7 @@ class _HomePageState extends State<HomePage> {
           InternetAddress.tryParse(serverIP), serverPot);
 
       // 开始监听
-      _serverSocket.listen(onServerSocketData,
+      _serverSocket?.listen(onServerSocketData,
           onError: onSocketError,
           onDone: onServerSocketDone,
           cancelOnError: true);
@@ -190,7 +142,7 @@ class _HomePageState extends State<HomePage> {
     try {
       _connectedSocket = await Socket.connect(serverIP, serverPot,
           timeout: Duration(milliseconds: 500));
-      _connectedSocket.listen(onSocketData,
+      _connectedSocket?.listen(onSocketData,
           onError: onSocketError, onDone: onSocketDone);
 
       printLog('与服务端建立连接');
@@ -203,11 +155,11 @@ class _HomePageState extends State<HomePage> {
   // 作为Server有新连接（Accept）
   void onServerSocketData(Socket socket) {
     _connectedSocket = socket;
-    _connectedSocket.listen(onSocketData,
+    _connectedSocket?.listen(onSocketData,
         onError: onSocketError, onDone: onSocketDone);
 
     printLog(
-        '有新客户端连接：${_connectedSocket.remoteAddress.address}:${_connectedSocket.remotePort}');
+        '有新客户端连接：${_connectedSocket?.remoteAddress.address}:${_connectedSocket?.remotePort}');
   }
 
   // 作为Server停止监听
@@ -224,7 +176,7 @@ class _HomePageState extends State<HomePage> {
 
   // socket关闭
   void onSocketDone() {
-    _connectedSocket.close();
+    _connectedSocket?.close();
     _connectedSocket = null;
     printLog('断开连接');
   }
@@ -250,13 +202,13 @@ class _HomePageState extends State<HomePage> {
           onPressed: () {
             // 断开已连接的socket
             if (_connectedSocket != null) {
-              _connectedSocket.close();
+              _connectedSocket?.close();
               _connectedSocket = null;
             }
 
             // 断开监听socket
             if (_serverSocket != null) {
-              _serverSocket.close();
+              _serverSocket?.close();
               _serverSocket = null;
             }
 
@@ -336,7 +288,7 @@ class _HomePageState extends State<HomePage> {
   void onBtnSendMsg() async {
     if (_sendMsgController.text.isNotEmpty) {
       if (_connectedSocket != null) {
-        _connectedSocket.add(utf8.encode(_sendMsgController.text)); // 发送UTF8数据
+        _connectedSocket?.add(utf8.encode(_sendMsgController.text)); // 发送UTF8数据
       }
 
       _sendMsgController.text = '';
@@ -347,7 +299,7 @@ class _HomePageState extends State<HomePage> {
   // 连续发送多条消息
   void onBtnSendmultipleMsg() {
     for (int i = 0; i < 100; ++i) {
-      _connectedSocket.writeln("onBtnSendmultipleMsg");
+      _connectedSocket?.writeln("onBtnSendmultipleMsg");
     }
   }
 
@@ -355,10 +307,10 @@ class _HomePageState extends State<HomePage> {
   void onBtnSendBigBuffer() {
     /* var dataWriter = ByteDataWriter();
     dataWriter.writeUint8(1); // 1个字节
-    _connectedSocket.add(dataWriter.toBytes());*/
+    _connectedSocket?.add(dataWriter.toBytes());*/
 
     var byteData = ByteData(1024 * 1024);
-    _connectedSocket.add(byteData.buffer.asUint8List());
+    _connectedSocket?.add(byteData.buffer.asUint8List());
   }
 
   Widget sendMsgRect() {
@@ -403,42 +355,13 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
-  // 展示接收到的消息Listview
-  bool _handleScrollNotification(ScrollNotification notification) {
-    final ScrollMetrics metrics = notification.metrics;
-    // printLog('滚动组件最大滚动距离:${metrics.maxScrollExtent}');
-    // printLog('当前滚动位置:${metrics.pixels}');
-
-    _recvMsgMaxScrollExtent = metrics.maxScrollExtent == double.infinity
-        ? 0
-        : metrics.maxScrollExtent;
-    _recvMsgScrollbarAlignmentY = metrics.maxScrollExtent == 0
-        ? -1
-        : -1 + (metrics.pixels / metrics.maxScrollExtent) * 2;
-    // printLog('_alignmentY:$_alignmentY');
-
-    setState(() {});
-    return true;
-  }
-
-  Widget msgListview() {
-    return NotificationListener<ScrollNotification>(
-      onNotification: _handleScrollNotification,
-      child: ListView.builder(
-        itemBuilder: (context, index) {
-          return Text(_recvMsg[index]);
-        },
-        itemCount: _recvMsg.length,
-      ),
-    );
-  }
   /**********************************************************************/
 
   // 打印日志
   void printLog(String log) {
+    log += '\n';
     print(log);
-    _recvMsg.add(log);
+    _recvMsgController.text += log;
     setState(() {});
   }
 }
