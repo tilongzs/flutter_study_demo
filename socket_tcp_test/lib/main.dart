@@ -37,6 +37,7 @@ class _HomePageState extends State<HomePage> {
   ServerSocket? _serverSocket = null; // 服务器监听socket
 
   TextEditingController _recvMsgController = TextEditingController(); //  接收消息文本控制器
+  ScrollController _recvScrollController = ScrollController(); //  接收消息文本滚动控制器
   TextEditingController _sendMsgController = TextEditingController(); //  发送消息文本控制器
   TextEditingController _IPTxtController = TextEditingController(); //  连接服务器IP文本控制器
   TextEditingController _portTxtController = TextEditingController(); //  连接服务器端口文本控制器
@@ -44,6 +45,11 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+
+    _recvMsgController.addListener(() {
+      // 自动滚动至底部
+      _recvScrollController.jumpTo(_recvScrollController.position.maxScrollExtent);
+    });
 
     _IPTxtController.text = _localIP;
     _portTxtController.text = '23300';
@@ -94,6 +100,7 @@ class _HomePageState extends State<HomePage> {
             expands: true,
             readOnly: true,
             controller: _recvMsgController,
+            scrollController: _recvScrollController,
             textAlignVertical: TextAlignVertical.top,
             decoration: const InputDecoration(
               filled: true,
@@ -359,7 +366,7 @@ class _HomePageState extends State<HomePage> {
 
   // 打印日志
   void printLog(String log) {
-    log += '\n';
+    log = DateTime.now().toString() + log + '\n';
     print(log);
     _recvMsgController.text += log;
     setState(() {});
