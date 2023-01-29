@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:rsa_encrypt/rsa_encrypt.dart';
 import 'package:pointycastle/api.dart' as crypto;
 import 'package:pointycastle/asymmetric/api.dart';
+import 'dart:convert';
 
 void main() {
   runApp(const MyApp());
@@ -32,7 +33,8 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  final List<String> _recvMsg = []; // 接收到的消息
+  TextEditingController _recvMsgController = TextEditingController();
+  ScrollController _recvScrollController = ScrollController();
   TextEditingController _sendMsgController = TextEditingController();
 
   late crypto.AsymmetricKeyPair _keyPair;
@@ -41,6 +43,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void initState() {
+
+    _recvMsgController.addListener(() {
+      // 自动滚动至底部
+      _recvScrollController.jumpTo(_recvScrollController.position.maxScrollExtent);
+    });
 
     getKeyPair().then((value) {
       printLog('getKeyPair生成完成');
@@ -54,11 +61,19 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
   }
 
+  @override
+  void dispose() {
+    _recvMsgController.dispose();
+    _recvScrollController.dispose();
+    _sendMsgController.dispose();
+    super.dispose();
+  }
+
   // 打印日志
   void printLog(String log) {
-    String finalLog = DateTime.now().toString() + " " + log;
-    print(finalLog);
-    _recvMsg.add(finalLog);
+    log = DateTime.now().toString() + '\t' + log + '\n';
+    print(log);
+    _recvMsgController.text += log;
     setState(() {});
   }
 
@@ -68,7 +83,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void onBtnEncrypt(){
     if(_sendMsgController.text.isNotEmpty){
-      _encryptedString = encrypt(_sendMsgController.text, _keyPair.publicKey as RSAPublicKey);
+      // 先进行一次UTF8编码
+      String utf8String = String.fromCharCodes(utf8.encode(_sendMsgController.text));
+      // 加密
+      _encryptedString = encrypt(utf8String, _keyPair.publicKey as RSAPublicKey);
       printLog('加密完成：${_sendMsgController.text}');
     }else{
       printLog('请输入需要加密的字符串');
@@ -77,8 +95,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void onBtnDecrypt(){
     if(_encryptedString.isNotEmpty){
+      // 解密
       String decryptedString = decrypt(_encryptedString, _keyPair.privateKey as RSAPrivateKey);
-      printLog('解密后字符串：${decryptedString}');
+      // UTF8解码
+      String str = utf8.decode(decryptedString.runes.toList());
+      printLog('解密后字符串：${str}');
     }else{
       printLog('请先加密字符串');
     }
@@ -104,20 +125,31 @@ class _MyHomePageState extends State<MyHomePage> {
   // 接收消息列表框
   Widget recvMsgListview() {
     return Container(
-      margin: EdgeInsets.all(10),
-      height: 300,
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: Colors.black,
-        ),
-        color: Colors.black12,
-      ),
-      child: ListView.builder(
-        itemBuilder: (context, index) {
-          return Text(_recvMsg[index]);
-        },
-        itemCount: _recvMsg.length,
-      ),
+        margin: EdgeInsets.all(10),
+        height: 300,
+        child: TextField(
+          keyboardType: TextInputType.multiline,
+          maxLines: null,
+          expands: true,
+          readOnly: true,
+          controller: _recvMsgController,
+          scrollController: _recvScrollController,
+          textAlignVertical: TextAlignVertical.top,
+          decoration: const InputDecoration(
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            isDense: true,
+            border: const OutlineInputBorder(
+              gapPadding: 0,
+              borderRadius: const BorderRadius.all(Radius.circular(5)),
+              borderSide: BorderSide(
+                width: 1,
+                style: BorderStyle.none,
+              ),
+            ),
+          ),
+        )
     );
   }
   /*****************************************************************************/

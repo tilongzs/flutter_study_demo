@@ -57,6 +57,17 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
+  void dispose() {
+    _recvMsgController.dispose();
+    _recvScrollController.dispose();
+    _sendMsgController.dispose();
+    _IPTxtController.dispose();
+    _portTxtController.dispose();
+
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
