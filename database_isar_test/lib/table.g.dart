@@ -17,14 +17,19 @@ const EmailSchema = CollectionSchema(
   name: r'Email',
   id: 2558369672199317214,
   properties: {
-    r'recipient': PropertySchema(
+    r'dateTime': PropertySchema(
       id: 0,
+      name: r'dateTime',
+      type: IsarType.dateTime,
+    ),
+    r'recipient': PropertySchema(
+      id: 1,
       name: r'recipient',
       type: IsarType.object,
       target: r'Recepient',
     ),
     r'title': PropertySchema(
-      id: 1,
+      id: 2,
       name: r'title',
       type: IsarType.string,
     )
@@ -72,13 +77,14 @@ void _emailSerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
+  writer.writeDateTime(offsets[0], object.dateTime);
   writer.writeObject<Recepient>(
-    offsets[0],
+    offsets[1],
     allOffsets,
     RecepientSchema.serialize,
     object.recipient,
   );
-  writer.writeString(offsets[1], object.title);
+  writer.writeString(offsets[2], object.title);
 }
 
 Email _emailDeserialize(
@@ -88,13 +94,14 @@ Email _emailDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = Email();
+  object.dateTime = reader.readDateTimeOrNull(offsets[0]);
   object.id = id;
   object.recipient = reader.readObjectOrNull<Recepient>(
-    offsets[0],
+    offsets[1],
     RecepientSchema.deserialize,
     allOffsets,
   );
-  object.title = reader.readStringOrNull(offsets[1]);
+  object.title = reader.readStringOrNull(offsets[2]);
   return object;
 }
 
@@ -106,12 +113,14 @@ P _emailDeserializeProp<P>(
 ) {
   switch (propertyId) {
     case 0:
+      return (reader.readDateTimeOrNull(offset)) as P;
+    case 1:
       return (reader.readObjectOrNull<Recepient>(
         offset,
         RecepientSchema.deserialize,
         allOffsets,
       )) as P;
-    case 1:
+    case 2:
       return (reader.readStringOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -206,6 +215,75 @@ extension EmailQueryWhere on QueryBuilder<Email, Email, QWhereClause> {
 }
 
 extension EmailQueryFilter on QueryBuilder<Email, Email, QFilterCondition> {
+  QueryBuilder<Email, Email, QAfterFilterCondition> dateTimeIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'dateTime',
+      ));
+    });
+  }
+
+  QueryBuilder<Email, Email, QAfterFilterCondition> dateTimeIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'dateTime',
+      ));
+    });
+  }
+
+  QueryBuilder<Email, Email, QAfterFilterCondition> dateTimeEqualTo(
+      DateTime? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'dateTime',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Email, Email, QAfterFilterCondition> dateTimeGreaterThan(
+    DateTime? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'dateTime',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Email, Email, QAfterFilterCondition> dateTimeLessThan(
+    DateTime? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'dateTime',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Email, Email, QAfterFilterCondition> dateTimeBetween(
+    DateTime? lower,
+    DateTime? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'dateTime',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
   QueryBuilder<Email, Email, QAfterFilterCondition> idEqualTo(Id value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
@@ -431,6 +509,18 @@ extension EmailQueryObject on QueryBuilder<Email, Email, QFilterCondition> {
 extension EmailQueryLinks on QueryBuilder<Email, Email, QFilterCondition> {}
 
 extension EmailQuerySortBy on QueryBuilder<Email, Email, QSortBy> {
+  QueryBuilder<Email, Email, QAfterSortBy> sortByDateTime() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'dateTime', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Email, Email, QAfterSortBy> sortByDateTimeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'dateTime', Sort.desc);
+    });
+  }
+
   QueryBuilder<Email, Email, QAfterSortBy> sortByTitle() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'title', Sort.asc);
@@ -445,6 +535,18 @@ extension EmailQuerySortBy on QueryBuilder<Email, Email, QSortBy> {
 }
 
 extension EmailQuerySortThenBy on QueryBuilder<Email, Email, QSortThenBy> {
+  QueryBuilder<Email, Email, QAfterSortBy> thenByDateTime() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'dateTime', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Email, Email, QAfterSortBy> thenByDateTimeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'dateTime', Sort.desc);
+    });
+  }
+
   QueryBuilder<Email, Email, QAfterSortBy> thenById() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.asc);
@@ -471,6 +573,12 @@ extension EmailQuerySortThenBy on QueryBuilder<Email, Email, QSortThenBy> {
 }
 
 extension EmailQueryWhereDistinct on QueryBuilder<Email, Email, QDistinct> {
+  QueryBuilder<Email, Email, QDistinct> distinctByDateTime() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'dateTime');
+    });
+  }
+
   QueryBuilder<Email, Email, QDistinct> distinctByTitle(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -483,6 +591,12 @@ extension EmailQueryProperty on QueryBuilder<Email, Email, QQueryProperty> {
   QueryBuilder<Email, int, QQueryOperations> idProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'id');
+    });
+  }
+
+  QueryBuilder<Email, DateTime?, QQueryOperations> dateTimeProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'dateTime');
     });
   }
 
