@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:isar/isar.dart';
 import 'table.dart';
@@ -51,12 +53,19 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  // 删除数据库
+  Future<void> deleteDB() async{
+    print('删除数据库');
+    _isar.close(deleteFromDisk: true);
+  }
+
   // 增
   Future<int> add() async{
     // 创建一行数据
     final newEmail = Email();
     newEmail.title = '邮件标题';
     newEmail.dateTime = DateTime.now();
+    newEmail.attachmentSize = Random().nextInt(3);
     final recipient = Recepient();
     recipient.name = 'mengmei';
     recipient.address = 'mm@mengmei.moe';
@@ -65,7 +74,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // 存入数据库
     await _isar.writeTxn(() async { // 写操作的代码必须放置在isar.writeTxn()中
       _currentEmailID = await _isar.emails.put(newEmail);
-      print('新增一行数据 id:${newEmail.id}');
+      print('新增一行数据 id:${newEmail.id} attachmentSize:${newEmail.attachmentSize}');
     });
 
     return _currentEmailID;
@@ -92,6 +101,14 @@ class _MyHomePageState extends State<MyHomePage> {
     await _isar.writeTxn(() async { // 写操作的代码必须放置在isar.writeTxn()中
       _isar.emails.clear();
       print('清空表');
+    });
+  }
+
+  // 删除所有表
+  Future<void> deleteAllData() async{
+    await _isar.writeTxn(() async { // 写操作的代码必须放置在isar.writeTxn()中
+      _isar.clear();
+      print('删除所有表');
     });
   }
 
@@ -129,6 +146,24 @@ class _MyHomePageState extends State<MyHomePage> {
     print('先增加数据');
   }
 
+  // 索引查询where()
+  void whereAttachmentSize() async{
+    final result = await _isar.emails.where().attachmentSizeEqualTo(2).findAll();
+    print('查找附件大小为2的所有数据 共${result.length}个');
+    result.forEach((e) {
+      print('查找到数据 id:${e.id} datetime:${e.dateTime}');
+    });
+  }
+
+  // 非索引查询filter()
+  void filterDatetime() async{
+    final result = await _isar.emails.filter().dateTimeLessThan(DateTime.now()).findAll();
+    print('查找比当前时间小的所有数据 共${result.length}个');
+    result.forEach((e) {
+      print('查找到数据 id:${e.id} datetime:${e.dateTime}');
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -144,11 +179,15 @@ class _MyHomePageState extends State<MyHomePage> {
             spacing:5,
             children: <Widget>[
               ElevatedButton(onPressed: openDB, child: Text('打开数据库')),
+              ElevatedButton(onPressed: deleteDB, child: Text('删除数据库')),
               ElevatedButton(onPressed: add, child: Text('增')),
               ElevatedButton(onPressed: delete, child: Text('删')),
               ElevatedButton(onPressed: clear, child: Text('清空表')),
+              ElevatedButton(onPressed: deleteAllData, child: Text('删除所有表')),
               ElevatedButton(onPressed: modify, child: Text('改')),
               ElevatedButton(onPressed: find, child: Text('查')),
+              ElevatedButton(onPressed: whereAttachmentSize, child: Text('索引where()')),
+              ElevatedButton(onPressed: filterDatetime, child: Text('非索引filter()')),
             ],
           ),
         ),
