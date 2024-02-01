@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:adaptive_scrollbar/adaptive_scrollbar.dart';
 
 void main() {
   runApp(MyApp());
@@ -25,16 +26,16 @@ class HomePage extends StatefulWidget {
 }
 
 class _ScrollBar extends StatelessWidget {
-  double _viewHeight = 1;
-  double _parentHeight = 1;
+  double _viewHeight = 0;
+  double _parentHeight = 0;
 
   _ScrollBar(double viewHeight, double parentHeight){
     _viewHeight = viewHeight;
     _parentHeight = parentHeight;
   }
 
-  double GenerateHeight(){
-    if (_viewHeight == 0) {
+  double calculateHeight(){
+    if (_viewHeight == 0 || _viewHeight == _parentHeight) {
       return 0;
     }  else {
       double height = _parentHeight * _parentHeight / _viewHeight;
@@ -46,7 +47,7 @@ class _ScrollBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 18,
-      height: GenerateHeight(),
+      height: calculateHeight(),
       decoration: BoxDecoration(
           shape: BoxShape.rectangle,
           borderRadius: BorderRadius.all(Radius.circular(20)),
@@ -73,14 +74,25 @@ class _HomePageState extends State<HomePage> {
   double _alignmentY = -1; // 范围-1~1
   double _maxScrollExtent = 0;
   final _listHeight = 300.0;
+  int _lineNum = 0;
+  final ScrollController verticalScrollController = ScrollController();
+
+  void addLine(){
+    _lineNum++;
+    _recvMsg.add(_lineNum.toString());
+    setState(() {
+
+    });
+  }
 
   @override
   void initState() {
     super.initState();
 
     // test
-    for (int i = 0; i < 30; ++i) {
-      _recvMsg.add(i.toString());
+    while(_lineNum < 30){
+      _lineNum++;
+      _recvMsg.add(_lineNum.toString());
     }
   }
 
@@ -90,6 +102,12 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: Text('Custom Scrollbar'),
       ),
+       floatingActionButton: FloatingActionButton(
+         child: const Icon(Icons.add),
+         onPressed: () => setState(() {
+           addLine();
+         }),
+       ),
       body: Center(
         child: Column(
           children: [
@@ -104,13 +122,7 @@ class _HomePageState extends State<HomePage> {
               child: Stack(
                 alignment: Alignment.topRight,
                 children: [
-                  MsgListview(), // 消息列表
-                  Container(
-                    // 滚动条
-                    alignment: Alignment(1, _alignmentY),
-                    padding: EdgeInsets.only(right: 5),
-                    child: _ScrollBar(_maxScrollExtent + _listHeight, _listHeight),
-                  )
+                  msgListview(), // 消息列表
                 ],
               ),
             ),
@@ -136,14 +148,29 @@ class _HomePageState extends State<HomePage> {
     return true;
   }
 
-  Widget MsgListview() {
-    return NotificationListener<ScrollNotification>(
-      onNotification: _handleScrollNotification,
-      child: ListView.builder(
-        itemBuilder: (context, index) {
-          return Text(_recvMsg[index]);
-        },
-        itemCount: _recvMsg.length,
+  Widget msgListview() {
+    return AdaptiveScrollbar(
+      controller: verticalScrollController,
+      sliderDecoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.all(Radius.circular(12.0))),
+      sliderActiveDecoration: BoxDecoration(
+          color: Color.fromRGBO(206, 206, 206, 100),
+          borderRadius: BorderRadius.all(Radius.circular(12.0))),
+      underColor: Colors.yellow,
+      position: ScrollbarPosition.right,
+      sliderChild: Center(child: Icon(Icons.drag_indicator, size: 12,) ),
+
+      child: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false), // 隐藏默认滚动条
+        child: ListView.builder(
+          controller: verticalScrollController,
+          scrollDirection: Axis.vertical,
+          itemBuilder: (context, index) {
+            return Center(child: Text(_recvMsg[index]));
+          },
+          itemCount: _recvMsg.length,
+        ),
       ),
     );
   }
