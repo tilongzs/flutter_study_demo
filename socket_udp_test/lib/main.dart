@@ -82,7 +82,16 @@ class _HomePageState extends State<HomePage> {
     try {
       final wifiInfo = NetworkInfo();
       var wifiIP = await wifiInfo.getWifiIP();
-      _localIP = wifiIP == null ? "" : wifiIP;
+      if (wifiIP != null){
+        if (wifiIP.isNotEmpty){
+          _localIP = wifiIP;
+          printLog('获取到本机局域网IP ${_localIP}');
+        }else{
+          printLog('wifiInfo.getWifiIP()获取本机局域网IP为空');
+        }
+      }else{
+        printLog('尝试获取本机局域网IP失败');
+      }
     } on PlatformException {
       print('Failed to get broadcast IP.');
     } catch (e) {

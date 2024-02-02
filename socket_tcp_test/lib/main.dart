@@ -86,18 +86,29 @@ class _HomePageState extends State<HomePage> {
   }
 
   // 获取本机局域网IP
-  void initIP() async {
+  void initIP() async{
     try {
       final wifiInfo = NetworkInfo();
-      String? localIP = await wifiInfo.getWifiIP();
-      if(localIP != null){
-        printLog('获取到本地IP：${localIP}');
+      var wifiIP = await wifiInfo.getWifiIP();
+      if (wifiIP != null){
+        if (wifiIP.isNotEmpty){
+          _localIP = wifiIP;
+          printLog('获取到本机局域网IP ${_localIP}');
+        }else{
+          printLog('wifiInfo.getWifiIP()获取本机局域网IP为空');
+        }
+      }else{
+        printLog('尝试获取本机局域网IP失败');
       }
     } on PlatformException {
-      print('尝试获取本机局域网IP异常.');
+      print('Failed to get broadcast IP.');
     } catch (e) {
       printLog('尝试获取本机局域网IP异常，e=${e.toString()}');
     }
+
+    setState(() {
+      _IPTxtController.text = _localIP;
+    });
   }
 
   // 接收消息列表框
