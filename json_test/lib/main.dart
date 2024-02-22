@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'TestJson.dart';
 
 void main() {
   runApp(const MyApp());
@@ -15,7 +18,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: '调试-模板代码'),
+      home: const MyHomePage(title: 'JSON示例代码'),
     );
   }
 }
@@ -36,7 +39,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState(){
     super.initState();
 
-    printLog('initState()');
+    printLog('参考文文章https://flutter.cn/docs/data-and-backend/serialization/json');
   }
 
   @override
@@ -44,6 +47,23 @@ class _MyHomePageState extends State<MyHomePage> {
     _msgController.dispose();
 
     super.dispose();
+  }
+
+  void showJson(){
+    TestJson testJson2 = TestJson('A2', 1, true, false);
+    List<TestJson> testJsonList = [];
+    testJsonList.add(testJson2);
+    TestJson testJson = TestJson('A1', 0, true, true, subNodes: testJsonList);
+    String testJsonString = jsonEncode(testJson.toJson()); // JSON序列化
+    printLog(testJsonString);
+
+    try{
+      final parsedJson = jsonDecode(testJsonString); // JSON反序列化
+      TestJson testCopy = TestJson.fromJson(parsedJson);
+      printLog(testCopy.toString());
+    }catch(e){
+      printLog('JSON反序列化异常:$e');
+    }
   }
 
   @override
@@ -59,7 +79,9 @@ class _MyHomePageState extends State<MyHomePage> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
             msgListview(),
-
+            Wrap(children: [
+              ElevatedButton(onPressed: showJson, child: Text('json示例'))
+            ],)
           ],
         ),
       ),
