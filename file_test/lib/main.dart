@@ -114,8 +114,10 @@ class _MyHomePageState extends State<MyHomePage> {
         file.create(recursive: true).then((file) { // 创建文件
           file.writeAsString('$filePath').then((file){ // 写入文件
             printLog('写入文件成功 $filePath');
-            file.readAsString().then((value) => printLog('readFile:${value}')); // 读取文件
-            file.delete();// 删除文件
+            file.readAsString().then((value) { // 读取文件
+              printLog('readFile:${value}');
+              file.delete();// 删除文件
+            });
           }, onError: (Object data, StackTrace stackTrace){
             printLog('writeAsString onError->' + data.toString());
           });
