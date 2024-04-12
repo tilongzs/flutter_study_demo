@@ -69,7 +69,7 @@ class _MyHomePageState extends State<MyHomePage> {
     };
 
     void onError(Object data, StackTrace stackTrace){
-      printLog('onError->' + data.toString());
+      printLog('onError->$data');
     }
 
     // Android iOS Linux macOS Windows通用路径
