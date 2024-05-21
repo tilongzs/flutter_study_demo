@@ -37,8 +37,8 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   final TextEditingController _msgController = TextEditingController(); // 接收消息文本控制器
   final ScrollController      _msgScrollController = ScrollController();
-  double lonA = 6.9876543;
-  double latA = 52.123456;
+  double lonA = 120.4237894;
+  double latA = 36.0533763;
   double lonB = 6.9876543;
   double latB = 52.123456;
   bool isUseLonA = false;
@@ -142,14 +142,15 @@ class _MyHomePageState extends State<MyHomePage> {
             latB = position.latitude;
           }
           isUseLonA = !isUseLonA;
-        }
 
-      printLog(position == null ? '实时位置 Unknown' : '实时位置 Lon:${position.longitude} Lat:${position.latitude}');
+          printLog(position == null ? '实时位置 Unknown' : '实时位置 Lon:${position.longitude} Lat:${position.latitude}');
+        }
     });
   }
 
   void getDistance(){
     double distanceInMeters = Geolocator.distanceBetween(latA, lonA, latB, lonB);
+    //double distanceInMeters = Geolocator.distanceBetween(36.0533763, 120.4237894, 36.0533562, 120.4237942);
     printLog("两坐标之间的距离为$distanceInMeters米");
     double bearing = Geolocator.bearingBetween(latA, lonA, latB, lonB);
     printLog("两坐标之间的方位角为$bearing");
