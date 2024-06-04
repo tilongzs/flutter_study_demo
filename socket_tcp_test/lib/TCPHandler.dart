@@ -12,7 +12,6 @@ class TCPHandler {
   RawServerSocket? _serverSocket; // TCP 监听socket
   var _connectedSocketsData = Map<int /*SocketID*/, SocketData>();
 
-  String _saveFileDir = ''; // 文件保存路径（默认为“程序目录/download”）
   void Function(String)? _cbLog; // 日志
   void Function(SocketData)? _cbOnAccept;
   void Function(SocketData)? _cbOnConnected;
@@ -122,9 +121,27 @@ class TCPHandler {
     return false;
   }
 
-  bool sendList(SocketData socketData, NetInfoType netInfoType, {Uint8List? data, FileInfo? fileInfo, String? filePath}){
-    IOData ioData = socketData.getIOData(NetAction.ACTION_SEND, netInfoType, data:data, fileInfo: fileInfo, filePath: filePath);
-    return _sendList(ioData);
+  bool sendList(SocketData socketData, NetInfoType netInfoType, {Uint8List? data, String? filePath}){
+    if(filePath != null){
+      File file = File(filePath);
+      if(file.existsSync()){
+        String fileName = path.basename(filePath);
+        Uint8List tmpFileName = utf8.encode(fileName);
+        FileInfo fileInfo = FileInfo();
+        fileInfo.fileName.setRange(0, tmpFileName.length, tmpFileName);
+        fileInfo.fileLength = file.lengthSync();
+
+        IOData ioData = socketData.getIOData(NetAction.ACTION_SEND, netInfoType, data:data, fileInfo: fileInfo, filePath: filePath);
+        return _sendList(ioData);
+      }else{
+        _log('sendList文件不存在 filePath:${filePath}');
+      }
+
+      return false;
+    }else{
+      IOData ioData = socketData.getIOData(NetAction.ACTION_SEND, netInfoType, data:data);
+      return _sendList(ioData);
+    }
   }
 
   // 作为TCP Server有新连接
@@ -275,18 +292,18 @@ class TCPHandler {
 
       // 检查头部数据
       if (0 == recvIOData.localPackage.headInfo.size){
-        onError(NetDisconnectCode.HeadinfoError, "TCPHandler::onRecv headInfo.size==0");
+        onError(NetDisconnectCode.HeadinfoError, "onRecv headInfo.size==0");
         return;
       }
 
       if (NetInfoType.NIT_NULL == recvIOData.localPackage.headInfo.netInfoType){
-        onError(NetDisconnectCode.HeadinfoError, "TCPHandler::onRecv NIT_NULL");
+        onError(NetDisconnectCode.HeadinfoError, "onRecv NIT_NULL");
         return;
       }
 
       if ((recvIOData.localPackage.headInfo.size > MAX_NET_PACKAGE_SIZE) && (NetDataType.NDT_Memory == recvIOData.localPackage.headInfo.dataType)){
         // 数据包过大（非文件）
-        onError(NetDisconnectCode.HeadinfoError, "TCPHandler::onRecv too big");
+        onError(NetDisconnectCode.HeadinfoError, "onRecv too big");
         return;
       }
       /*******************************************************************************************************************/
@@ -334,7 +351,17 @@ class TCPHandler {
                 String dirPath = '';
                 await getDownloadsDirectory().then((directory){
                   if(directory != null){
-                    dirPath = path.absolute(directory.path, '/download');
+                    dirPath = path.absolute(directory.path, 'download');
+                    var fileName = fileInfo.fileName.where((byte) => byte != 0).toList(); // 过滤掉末尾的 0 字节
+                    recvIOData.localPackage.filePath = path.absolute(dirPath, utf8.decode(fileName));
+
+                    // 删除之前的文件
+                    File file = File(recvIOData.localPackage.filePath!);
+                    if(file.existsSync()){
+                      file.deleteSync();
+                    }
+
+                    _log('onRecv start recv file...${recvIOData.localPackage.filePath}');
                   }else{
                     onError(NetDisconnectCode.Unknown, "获取下载文件夹路径 directory==null");
                     return;
@@ -343,16 +370,6 @@ class TCPHandler {
                   onError(NetDisconnectCode.Unknown, "获取下载文件夹路径失败");
                   return;
                 });
-
-                // 创建文件夹
-                // final directory = Directory(dirPath);
-                // await directory.create(recursive: true).then((directory){
-                //   recvIOData.localPackage.filePath = path.absolute(dirPath, utf8.decode(fileInfo!.fileName));
-                //   _log('TCPHandler::onRecv start recv file...${recvIOData.localPackage.filePath}');
-                // }, onError: (data, stackTrace){
-                //   onError(NetDisconnectCode.Unknown, "创建保存文件夹失败");
-                //   return;
-                // });
               }
               else
               {
@@ -422,81 +439,56 @@ class TCPHandler {
 
             // 读取数据
             Uint8List readData = reader.read(nodeRemainWaitBytes);
-            recvIOData.localPackage.buffer.add(readData, copy: true);
 
             File file = File(recvIOData.localPackage.filePath!);
-            file.create(recursive: true).then((file){
-              file.writeAsBytes(readData).then((file){
-                // 写入文件成功
-              }, onError: (Object data, StackTrace stackTrace){
-                onError(NetDisconnectCode.CreateWriteFileError, 'writeAsBytes onError->' + data.toString());
-                file.delete();// 删除文件
-              });
-            }, onError: (Object data, StackTrace stackTrace){
-              onError(NetDisconnectCode.CreateWriteFileError, 'file.create onError->' + data.toString());
-            });
-
-            // #ifdef _WIN32
-            // std::wstring wsFilePath = UTF8ToUnicode(recvIOData.localPackage.filePath.c_str());
-            // ofstream writeFile(wsFilePath.c_str(), ios::binary | ios::app);
-            // #else
-            // ofstream writeFile(recvIOData.localPackage.filePath.c_str(), ios::binary);
-            // #endif
-            // if (!writeFile.is_open())
-            // {
-            //   // todo 删除已接收文件
-            //   onError(NetDisconnectCode.CreateWriteFileError, "TCPHandler::onRecv ofstream open failed");
-            //   return;
-            // }
-            // writeFile.seekp(ios::end);
-            // writeFile.write(data + (dataSize - bufRemainSize), nodeRemainWaitBytes);
-            // writeFile.close();
+            try {
+              file.createSync(recursive: true);
+              RandomAccessFile randomAccessFile = file.openSync(mode: FileMode.append);
+              randomAccessFile.setPositionSync(file.lengthSync());
+              randomAccessFile.writeFromSync(readData);
+              randomAccessFile.closeSync();
+            }catch(e){
+              onError(NetDisconnectCode.CreateWriteFileError, '文件写入时发生异常 e:' + e.toString());
+              file.delete();
+            }
 
             nodeHasRcvBytes += nodeRemainWaitBytes;
             recvIOData.localPackage.receivedBytes += nodeRemainWaitBytes;
             bufRemainSize -= nodeRemainWaitBytes;
 
-            if (nodeHasRcvBytes == nodeNeedRcvBytes)
-            {
-            // 保存结束时间
-            recvIOData.localPackage.tpEndTime = steady_clock::now();
+            if (nodeHasRcvBytes == nodeNeedRcvBytes){
+              // 保存结束时间
+              recvIOData.localPackage.tpEndTime = DateTime.now().millisecondsSinceEpoch;
 
-            // 保存最新IO序号
-            socketData.recvIONumber = recvIOData.localPackage.headInfo.ioNum;
+              // 保存最新IO序号
+              socketData.recvIONumber = recvIOData.localPackage.headInfo.ioNum;
 
-            // 通知接收完成
-            if (_cbOnRecv)
-            {
-            _cbOnRecv((const EventData*)socketData, &recvIOData.localPackage);
-            }
+              // 通知接收完成
+              _cbOnRecv?.call(recvIOData.socketData, recvIOData.localPackage);
 
-            // 回复确认
-            if (recvIOData.localPackage.headInfo.needConfirm)
-            {
-            replyConfirm(socketData, recvIOData.localPackage.headInfo.ioNum);
-            }
+              // 回复确认
+              if (recvIOData.localPackage.headInfo.needConfirm) {
+                _replyConfirm(socketData, recvIOData.localPackage.headInfo.ioNum);
+              }
 
-            // 清空接收缓存区
-            recvIOData.localPackage.clear();
-            continue;
+              // 清空接收缓存区
+              recvIOData.localPackage.clear();
+              continue;
             }
             else
             {
-            break;
+              break;
             }
           }
-          break;
         case NetDataType.NDT_Memory:
           {
             switch (recvIOData.localPackage.headInfo.netInfoType) {
-              case NetInfoType.NIT_Heartbeat:
-                {
+              case NetInfoType.NIT_Heartbeat:{
                   // 清空接收缓存区
                   recvIOData.localPackage.clear();
                   continue;
                 }
-              case NetInfoType.NIT_AutoConfirm:
-                {
+              case NetInfoType.NIT_AutoConfirm:{
                   IOData? sendIOData = socketData.getWaitSendIOData();
                   if(null != sendIOData && sendIOData.localPackage.headInfo.ioNum == recvIOData.localPackage.headInfo.ioNum){
                     // 从发送列表中移除头部ioData
@@ -771,47 +763,44 @@ class TCPHandler {
       }
 
       // 发送文件
-      // if (NetDataType::NDT_File == ioData.localPackage.headInfo.dataType
-      // || NetDataType::NDT_MemoryAndFile == ioData.localPackage.headInfo.dataType)
-      // {
-      //   #ifdef _WIN32
-      //   std::wstring wsFilePath = UTF8ToUnicode(ioData.localPackage.filePath.c_str());
-      //   ifstream readFile(wsFilePath.c_str(), ios::binary);
-      //   #else
-      //   ifstream readFile(ioData.localPackage.filePath.c_str(), ios::in | ios::binary);
-      //   #endif
-      //   if (!readFile)
-      //   {
-      //   warn("TCPHandler::send readFile faild");
-      //   break;
-      //   }
-      //
-      //   FileInfo* fileInfo = (FileInfo*)ioData.localPackage.package1;
-      //   readFile.seekg(fileInfo.fileLength - (ioData.localPackage.headInfo.size - ioData.localPackage.sendBytes), ios::beg);
-      //   char* tmpBufer = new char[SINGLE_PACKAGE_SIZE];
-      //   auto onReadFile = [&]
-      //   {
-      //   isSucceed = send((EventData*)ioData.socketData, tmpBufer, readFile.gcount());
-      //   if (!isSucceed)
-      //   {
-      //   return;
-      //   }
-      //
-      //   ioData.localPackage.sendBytes += readFile.gcount();
-      //   };
-      //   while (readFile.read(tmpBufer, SINGLE_PACKAGE_SIZE))
-      //   {
-      //   onReadFile();
-      //   }
-      //
-      //   if (readFile.eof() && readFile.gcount() > 0)
-      //   {
-      //   onReadFile();
-      //   }
-      //
-      //   readFile.close();
-      //   delete[] tmpBufer;
-      // }
+      if (NetDataType.NDT_File == ioData.localPackage.headInfo.dataType
+        || NetDataType.NDT_MemoryAndFile == ioData.localPackage.headInfo.dataType){
+        File file = File(ioData.localPackage.filePath!);
+        if(!file.existsSync()){
+          _log('待发送文件不存在 filePath:${ioData.localPackage.filePath!}');
+
+          // 从发送列表中移除头部ioData
+          ioData.socketData.onSendComplete();
+          break;
+        }
+
+        try{
+          RandomAccessFile randomAccessFile = file.openSync(mode: FileMode.read);
+          randomAccessFile.setPositionSync(ioData.localPackage.fileInfo!.fileLength - (ioData.localPackage.headInfo.size - ioData.localPackage.sendBytes));
+          List<int> tmpBufer = List<int>.filled(SINGLE_PACKAGE_SIZE, 0);
+          int readBytes = 0;
+          do{
+            readBytes = randomAccessFile.readIntoSync(tmpBufer);
+            if(readBytes != 0){
+              currentSendBytes = ioData.socketData.sock!.write(tmpBufer, 0, readBytes);
+              if (0 != currentSendBytes) {
+                ioData.localPackage.sendBytes += currentSendBytes;
+              } else {
+                isSucceed = false;
+                break;
+              }
+            }else{
+              _log("读取文件结束 ${ioData.localPackage.sendBytes}");
+              break;
+            }
+          }while(true);
+        }catch(e){
+          _log('发送文件时发生异常 e:${e.toString()}');
+          // 从发送列表中移除头部ioData
+          ioData.socketData.onSendComplete();
+          break;
+        }
+      }
     }while(false);
 
     _onReadySend(ioData.socketData, ioData);
