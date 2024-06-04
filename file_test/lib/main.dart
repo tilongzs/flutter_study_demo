@@ -134,6 +134,34 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  void writeAppend() async{
+    getDownloadsDirectory().then((Directory? directory){
+      if(directory != null){
+        String filePath = path.join(directory.path, 'test.txt');
+        File file = File(filePath);
+        file.create(recursive: true).then((file) { // 创建文件
+          file.open(mode: FileMode.append).then((randomAccessFile) async {// FileMode.write和FileMode.writeOnly会清空整个文件
+            printLog('file.lengthSync->${file.lengthSync()}');
+            await randomAccessFile.setPosition(file.lengthSync()); // 从文件最后位置写入
+            randomAccessFile.writeString('$filePath' ).then((file){ // 写入文件
+              printLog('写入文件成功 $filePath');
+              randomAccessFile.close();
+            }, onError: (Object data, StackTrace stackTrace){
+              printLog('writeAsString onError->' + data.toString());
+            });
+          }, onError: (Object data, StackTrace stackTrace){
+            printLog('file.open onError->' + data.toString());
+          });
+        }, onError: (Object data, StackTrace stackTrace){
+          printLog('file.create onError->' + data.toString());
+        });
+      }
+    }, onError: (Object data, StackTrace stackTrace){
+      printLog('getDownloadsDirectory onError->' + data.toString());
+    });
+
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -156,6 +184,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 ElevatedButton(onPressed: showAllPath, child: const Text('尝试获取所有路径')),
                 ElevatedButton(onPressed: tryRW, child: const Text('尝试读写')),
                 ElevatedButton(onPressed: loadAssetImg, child: const Text('读取asset图片')),
+                ElevatedButton(onPressed: writeAppend, child: const Text('继续写文件')),
               ],)
           ],
         ),
