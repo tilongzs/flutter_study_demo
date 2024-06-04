@@ -9,7 +9,7 @@ import 'netframe.dart';
 class TCPHandler {
   InternetAddress _localAddr =  InternetAddress.anyIPv4;
   int _localPort = 0;
-  RawServerSocket? _serverSocket; // TCP 监听socket
+  ServerSocket? _serverSocket; // TCP 监听socket
   var _connectedSocketsData = Map<int /*SocketID*/, SocketData>();
 
   void Function(String)? _cbLog; // 日志
@@ -48,7 +48,7 @@ class TCPHandler {
     _localPort = localPort;
 
     try {
-      _serverSocket = await RawServerSocket.bind(_localAddr, _localPort);
+      _serverSocket = await ServerSocket.bind(_localAddr, _localPort);
       if(null == _serverSocket){
         return false;
       }
@@ -89,7 +89,7 @@ class TCPHandler {
       var socketData = SocketData();
       socketData.remoteIP = remoteIP;
       socketData.remotePort = remotePort;
-      socketData.sock = await RawSocket.connect(remoteIP, remotePort,
+      socketData.sock = await Socket.connect(remoteIP, remotePort,
           timeout: Duration(milliseconds: timeout));
 
       // 连接成功
@@ -145,7 +145,7 @@ class TCPHandler {
   }
 
   // 作为TCP Server有新连接
-  void _onAccept(RawSocket socket) {
+  void _onAccept(Socket socket) {
     var socketData = SocketData();
     socketData.sock = socket;
     socketData.remoteIP = socket.remoteAddress.address;
@@ -156,7 +156,7 @@ class TCPHandler {
     socketData.setConnected(true);
     _connectedSocketsData[socketData.id] = socketData;
 
-    socket.listen(socketData.onData, onError: socketData.onError, onDone: socketData.onClose);
+    socket.listen(socketData.onData, onError: socketData.onError, onDone: socketData.onClose, cancelOnError: true);
 
     // 发送心跳
     // var ioData = socketData.GetIOData(NetAction.ACTION_SEND,
@@ -189,46 +189,8 @@ class TCPHandler {
 
   void _onData([arguments]) {
     SocketData socketData = arguments[0] as SocketData;
-    RawSocketEvent socketEvent = arguments[1] as RawSocketEvent;
-    switch (socketEvent) {
-      case RawSocketEvent.read: {
-        if (null != socketData.sock) {
-          var buffer = BytesBuffer();
-          var remainBytes = socketData.sock!.available();
-          do {
-            Uint8List? data = socketData.sock!.read(remainBytes);
-            if (null != data) {
-              buffer.add(data);
-            } else {
-              break;
-            }
-
-            remainBytes = socketData.sock!.available();
-          } while (remainBytes != 0);
-
-          _onRecv(socketData, buffer.toBytes(copy: true));
-        }
-      }
-      break;
-      case RawSocketEvent.write: {
-        // 仅在socket可写时调用一次
-        IOData? ioData = socketData.getWaitSendIOData();
-        if(ioData != null){
-          _onReadySend(socketData, ioData);
-        }
-      }
-      break;
-      case RawSocketEvent.readClosed: {
-        socketData.close(); // 对方主动断开连接
-      }
-      break;
-      case RawSocketEvent.closed: {
-        // 这里不必处理，在onSoketClose里已经处理了
-      }
-      break;
-      default: {}
-      break;
-    }
+    Uint8List data = arguments[1] as Uint8List;
+    _onRecv(socketData, data);
   }
 
   // 接收到新数据
@@ -622,7 +584,7 @@ class TCPHandler {
     return true;
   }
 
-  void _send(IOData ioData) {
+  Future<void> _send(IOData ioData) async {
     ioData.socketData.isSending = true;
 
     bool isSucceed = true;
@@ -638,43 +600,18 @@ class TCPHandler {
       if (ioData.localPackage.sendBytes < PackageBase.classSize){
         ioData.localPackage.tpStartTime = ioData.socketData.tpSendHeartbeat;
 
-        var writer = ByteDataWriter(endian: Endian.little);
-        writer.write(ioData.localPackage.headInfo.toBytes());
         try{
-          do{
-            nodeSendBytes = ioData.localPackage.sendBytes;
-            nodeRemainSendBytes = PackageBase.classSize - nodeSendBytes;
-            if (0 == nodeRemainSendBytes)
-            {
-              break;
-            }
-
-            currentSendBytes = nodeRemainSendBytes;
-            if (currentSendBytes > SINGLE_PACKAGE_SIZE)
-            {
-              currentSendBytes = SINGLE_PACKAGE_SIZE;
-            }
-
-            currentSendBytes = ioData.socketData.sock!.write(writer.toBytes(), nodeSendBytes, currentSendBytes);
-            if (0 != currentSendBytes)
-            {
-              ioData.localPackage.sendBytes += currentSendBytes;
-            }
-            else
-            {
-              isSucceed = false;
-              break;
-            }
-          }while(true);
+          ioData.socketData.sock!.add(ioData.localPackage.headInfo.toBytes());
+          await ioData.socketData.sock!.flush().then((value){
+            ioData.localPackage.sendBytes = (ioData.localPackage.sendBytes + PackageBase.classSize).toInt();
+          }, onError: (error){
+            _log('发送PackageBase时发生错误 error:${error.toString()}');
+            ioData.socketData.close();
+          });
         } catch (e) {
           _log('DirectSend tcp出现异常，e=${e.toString()}');
           ioData.socketData.close();
           return;
-        }
-
-        if (!isSucceed)
-        {
-          break;
         }
       }
 
@@ -683,40 +620,17 @@ class TCPHandler {
         ioData.localPackage.tpStartTime = ioData.socketData.tpSendHeartbeat;
 
         try{
-          do{
-            nodeSendBytes = (ioData.localPackage.sendBytes - PackageBase.classSize).toInt();
-            nodeRemainSendBytes = ioData.localPackage.package1Size - nodeSendBytes;
-            if (0 == nodeRemainSendBytes)
-            {
-              break;
-            }
-
-            currentSendBytes = nodeRemainSendBytes;
-            if (currentSendBytes > SINGLE_PACKAGE_SIZE)
-            {
-              currentSendBytes = SINGLE_PACKAGE_SIZE;
-            }
-
-            currentSendBytes = ioData.socketData.sock!.write(ioData.localPackage.package1!, nodeSendBytes, currentSendBytes);
-            if (0 != currentSendBytes)
-            {
-              ioData.localPackage.sendBytes += currentSendBytes;
-            }
-            else
-            {
-              isSucceed = false;
-              break;
-            }
-          }while(true);
+          ioData.socketData.sock!.add(ioData.localPackage.package1!);
+          await ioData.socketData.sock!.flush().then((value){
+            ioData.localPackage.sendBytes += ioData.localPackage.package1Size;
+          }, onError: (error){
+            _log('发送package1时发生错误 error:${error.toString()}');
+            ioData.socketData.close();
+          });
         } catch (e) {
           _log('DirectSend tcp出现异常，e=${e.toString()}');
           ioData.socketData.close();
           return;
-        }
-
-        if (!isSucceed)
-        {
-          break;
         }
       }
 
@@ -725,40 +639,17 @@ class TCPHandler {
         ioData.localPackage.tpStartTime = ioData.socketData.tpSendHeartbeat;
 
         try{
-          do{
-            nodeSendBytes = (ioData.localPackage.sendBytes - (PackageBase.classSize + ioData.localPackage.package1Size)).toInt();
-            nodeRemainSendBytes = ioData.localPackage.package2Size - nodeSendBytes;
-            if (0 == nodeRemainSendBytes)
-            {
-              break;
-            }
-
-            currentSendBytes = nodeRemainSendBytes;
-            if (currentSendBytes > SINGLE_PACKAGE_SIZE)
-            {
-              currentSendBytes = SINGLE_PACKAGE_SIZE;
-            }
-
-            currentSendBytes = ioData.socketData.sock!.write(ioData.localPackage.package1!, nodeSendBytes, currentSendBytes);
-            if (0 != currentSendBytes)
-            {
-              ioData.localPackage.sendBytes += currentSendBytes;
-            }
-            else
-            {
-              isSucceed = false;
-              break;
-            }
-          }while(true);
+          ioData.socketData.sock!.add(ioData.localPackage.package2!);
+          await ioData.socketData.sock!.flush().then((value){
+            ioData.localPackage.sendBytes += ioData.localPackage.package2Size;
+          }, onError: (error){
+            _log('发送package2时发生错误 error:${error.toString()}');
+            ioData.socketData.close();
+          });
         } catch (e) {
           _log('DirectSend tcp出现异常，e=${e.toString()}');
           ioData.socketData.close();
           return;
-        }
-
-        if (!isSucceed)
-        {
-          break;
         }
       }
 
@@ -774,32 +665,14 @@ class TCPHandler {
           break;
         }
 
-        try{
-          RandomAccessFile randomAccessFile = file.openSync(mode: FileMode.read);
-          randomAccessFile.setPositionSync(ioData.localPackage.fileInfo!.fileLength - (ioData.localPackage.headInfo.size - ioData.localPackage.sendBytes));
-          List<int> tmpBufer = List<int>.filled(SINGLE_PACKAGE_SIZE, 0);
-          int readBytes = 0;
-          do{
-            readBytes = randomAccessFile.readIntoSync(tmpBufer);
-            if(readBytes != 0){
-              currentSendBytes = ioData.socketData.sock!.write(tmpBufer, 0, readBytes);
-              if (0 != currentSendBytes) {
-                ioData.localPackage.sendBytes += currentSendBytes;
-              } else {
-                isSucceed = false;
-                break;
-              }
-            }else{
-              _log("读取文件结束 ${ioData.localPackage.sendBytes}");
-              break;
-            }
-          }while(true);
-        }catch(e){
-          _log('发送文件时发生异常 e:${e.toString()}');
+        await ioData.socketData.sock!.addStream(file.openRead()).then((value){
+          _log('文件发送完成');
+          ioData.localPackage.sendBytes += ioData.localPackage.fileInfo!.fileLength;
+        }, onError: (error){
+          _log('发送文件时发生错误 error:${error.toString()}');
           // 从发送列表中移除头部ioData
-          ioData.socketData.onSendComplete();
-          break;
-        }
+          ioData.socketData.close();
+        });
       }
     }while(false);
 

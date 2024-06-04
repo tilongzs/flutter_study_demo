@@ -254,7 +254,7 @@ class IOData {
 }
 
 class SocketData {
-  RawSocket?    sock;
+  Socket?    sock;
 
   String    remoteIP = '';			// 远程地址
   int       remotePort = 0;     // 远程端口
@@ -482,13 +482,12 @@ class SocketData {
     setConnected(false);
   }
 
-  void onData(RawSocketEvent socketEvent){
-    signalOnData.dispatch([this, socketEvent]);
+  void onData(Uint8List data){
+    signalOnData.dispatch([this, data]);
   }
 
   void onError(Object error) {
     signalOnLog.dispatch(["SocketData::连接发送错误 error:${error.toString()}"]);
-    sock?.close();
   }
 
   void onClose(){
