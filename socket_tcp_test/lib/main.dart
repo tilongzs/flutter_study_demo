@@ -36,6 +36,7 @@ class _HomePageState extends State<HomePage> {
   String _localIP = '127.0.0.1'; //本机局域网IP
   TCPHandler?	_tcpHandler;
   SocketData? _currentSocketData = null; // 已建立连接的socket
+  bool  _isUseSSL = false;
 
   TextEditingController _recvMsgController = TextEditingController(); //  接收消息文本控制器
   ScrollController      _recvMsgScrollController = ScrollController();
@@ -191,12 +192,18 @@ class _HomePageState extends State<HomePage> {
     var serverIP = _IPTxtController.text;
     var serverPot = int.parse(_portTxtController.text);
     _tcpHandler = TCPHandler(printLog);
-    bool isSucess = await _tcpHandler!.connect(serverIP, serverPot, _onConnected, _onDisconnect, _onRecv, _onSend);
+    bool isSucess = await _tcpHandler!.connect(serverIP, serverPot, _onConnected, _onDisconnect, _onRecv, _onSend, isUseSSL: _isUseSSL);
     if(isSucess){
       printLog('连接服务端成功');
     }else{
       printLog('连接服务端失败');
     }
+  }
+
+  void onSSLChecked(isUseSSL){
+    setState(() {
+      _isUseSSL = isUseSSL;
+    });
   }
 
   Widget IPSettingRect() {
@@ -205,7 +212,11 @@ class _HomePageState extends State<HomePage> {
         spacing: 10,
         children: [
           ElevatedButton(onPressed: onBtnListen, child: Text('监听')),
-          ElevatedButton(onPressed: onBtnConnectToServer, child: Text('连接'))
+          ElevatedButton(onPressed: onBtnConnectToServer, child: Text('连接')),
+          SizedBox(width: 100, height: 30,child: Row(children: [
+            Checkbox(value: _isUseSSL, onChanged: onSSLChecked),
+            Text('使用SSL')
+          ],),)
         ],
       );
     };

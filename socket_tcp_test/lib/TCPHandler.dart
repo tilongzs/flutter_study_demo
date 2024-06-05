@@ -31,7 +31,7 @@ class TCPHandler {
       void Function(SocketData) cbOnDisconnected,
       void Function(SocketData, LocalPackage) cbOnRecv,
       void Function(SocketData, LocalPackage)? cbOnSend,
-      {String? localIP}) async {
+      {String? localIP, bool isUseSSL = false}) async {
     _cbOnAccept = cbOnAccept;
     _cbOnDisconnect = cbOnDisconnected;
     _cbOnRecv = cbOnRecv;
@@ -79,7 +79,7 @@ class TCPHandler {
       void Function(SocketData) cbOnDisconnected,
       void Function(SocketData, LocalPackage) cbOnRecv,
       void Function(SocketData, LocalPackage)? cbOnSend,
-      {int timeout = 500}) async {
+      {int timeout = 500, bool isUseSSL = false}) async {
     _cbOnConnected = cbOnConnected;
     _cbOnDisconnect = cbOnDisconnected;
     _cbOnRecv = cbOnRecv;
@@ -89,8 +89,16 @@ class TCPHandler {
       var socketData = SocketData();
       socketData.remoteIP = remoteIP;
       socketData.remotePort = remotePort;
-      socketData.sock = await Socket.connect(remoteIP, remotePort,
-          timeout: Duration(milliseconds: timeout));
+      if(isUseSSL){
+        socketData.sock = await SecureSocket.connect(remoteIP, remotePort,
+            timeout: Duration(milliseconds: timeout), onBadCertificate: (X509Certificate){
+              // 仅调试用，不校验，以便允许自签名证书
+              return true;
+            });
+      }else{
+        socketData.sock = await Socket.connect(remoteIP, remotePort,
+            timeout: Duration(milliseconds: timeout));
+      }
 
       // 连接成功
       socketData.signalOnData.add(_onData);
