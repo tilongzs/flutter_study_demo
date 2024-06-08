@@ -298,7 +298,7 @@ class SocketData {
       }
     }
 
-    return null;
+    return createNewIOData(action);
   }
 
   IOData createNewIOData(NetAction action){
