@@ -441,6 +441,7 @@ class SocketData {
 
   void onSendComplete(){
     if (waitSendIOs.isNotEmpty) {
+      waitSendIOs.first.reset();
       waitSendIOs.removeFirst();
     }  
     
@@ -457,7 +458,7 @@ class SocketData {
   }
 
   void resetRecvIOData(){
-    _recvIOData?.reset();
+    _recvIOData?.reset(newAction: NetAction.ACTION_RECV);
   }
 
   void setConnected(bool isConn){

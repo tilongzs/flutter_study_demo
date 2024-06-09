@@ -248,6 +248,7 @@ class TCPHandler {
           PackageBase? tmpHeadInfo = PackageBase.fromBytes(recvIOData.localPackage.buffer.toBytes());
           if(tmpHeadInfo != null){
             recvIOData.localPackage.headInfo = tmpHeadInfo;
+            recvIOData.localPackage.buffer = BytesBuffer();// 重置buffer
           }else{
             // 头部数据未接收完成
             onError(NetDisconnectCode.HeadinfoError, "PackageBase.fromBytes失败");
@@ -290,7 +291,6 @@ class TCPHandler {
 
               if (recvIOData.localPackage.package1Size == 0){
                 recvIOData.localPackage.package1Size = FileInfo.classSize;
-                recvIOData.localPackage.buffer = BytesBuffer();// 重置buffer
               }
 
               // 计算节点剩余待读取字节数
@@ -311,6 +311,7 @@ class TCPHandler {
                 FileInfo? fileInfo = FileInfo.fromBytes(recvIOData.localPackage.buffer.toBytes());
                 if(fileInfo != null){
                   recvIOData.localPackage.fileInfo = fileInfo;
+                  recvIOData.localPackage.buffer = BytesBuffer();// 重置buffer
                 }else{
                   // 头部数据未接收完成
                   onError(NetDisconnectCode.Unknown, "FileInfo.fromBytes失败");
@@ -361,7 +362,6 @@ class TCPHandler {
 
                 if (recvIOData.localPackage.package2Size == 0){
                   recvIOData.localPackage.package2Size = nodeNeedRcvBytes;
-                  recvIOData.localPackage.buffer = BytesBuffer();// 重置buffer
                 }
       
                 // 计算节点剩余待读取字节数
@@ -380,6 +380,7 @@ class TCPHandler {
 
                 if (nodeHasRcvBytes == nodeNeedRcvBytes) {
                   recvIOData.localPackage.package2 = recvIOData.localPackage.buffer.toBytes(copy: true);
+                  recvIOData.localPackage.buffer = BytesBuffer();// 重置buffer
                 }else{
                   break;
                 }
@@ -441,8 +442,7 @@ class TCPHandler {
                 _replyConfirm(socketData, recvIOData.localPackage.headInfo.ioNum);
               }
 
-              // 清空接收缓存区
-              recvIOData.localPackage.clear();
+              socketData.resetRecvIOData();
               continue;
             }
             else
@@ -454,8 +454,7 @@ class TCPHandler {
           {
             switch (recvIOData.localPackage.headInfo.netInfoType) {
               case NetInfoType.NIT_Heartbeat:{
-                  // 清空接收缓存区
-                  recvIOData.localPackage.clear();
+                  socketData.resetRecvIOData();
                   continue;
                 }
               case NetInfoType.NIT_AutoConfirm:{
@@ -465,7 +464,7 @@ class TCPHandler {
                     socketData.onSendComplete();
                   }
 
-                  recvIOData.localPackage.clear();
+                  socketData.resetRecvIOData();
 
                   // 继续发送
                   sendIOData = socketData.getWaitSendIOData();
@@ -500,8 +499,7 @@ class TCPHandler {
                     _replyConfirm(socketData, recvIOData.localPackage.headInfo.ioNum);
                   }
 
-                  // 清空接收缓存区
-                  recvIOData.localPackage.clear();
+                  socketData.resetRecvIOData();
                   continue;
                 } else if (bufRemainSize == 0) {
                   break;
@@ -529,7 +527,8 @@ class TCPHandler {
 
                 if (nodeHasRcvBytes == nodeNeedRcvBytes) {
                   // 全部Package接收完毕
-                  recvIOData.localPackage.package1 = recvIOData.localPackage.buffer.toBytes();
+                  recvIOData.localPackage.package1 = recvIOData.localPackage.buffer.toBytes(copy: true);
+                  recvIOData.localPackage.buffer = BytesBuffer();// 重置buffer
 
                   // 保存结束时间
                   recvIOData.localPackage.tpEndTime = DateTime.now().millisecondsSinceEpoch;
@@ -545,8 +544,7 @@ class TCPHandler {
                     _replyConfirm(socketData, recvIOData.localPackage.headInfo.ioNum);
                   }
 
-                  // 清空接收缓存区
-                  recvIOData.localPackage.clear();
+                  socketData.resetRecvIOData();
                   continue;
                 } else {
                   break;
