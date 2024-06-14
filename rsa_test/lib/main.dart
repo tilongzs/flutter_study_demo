@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(title: 'DES加密示例'),
+      home: const MyHomePage(title: 'RSA加密示例'),
     );
   }
 }
