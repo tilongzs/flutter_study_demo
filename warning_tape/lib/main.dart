@@ -22,8 +22,7 @@ class MovingWarningStripe extends StatefulWidget {
 
 class _MovingWarningStripeState extends State<MovingWarningStripe> {
   double _offset = 0.0;
-  final double stripeWidth = 20.0;
-  final double stripeHeight = 30.0;
+  double _stripeWidth = 20.0;
   final Color yellowColor = Colors.yellow;
   final Color blackColor = Colors.black;
 
@@ -33,11 +32,21 @@ class _MovingWarningStripeState extends State<MovingWarningStripe> {
     _startAnimation();
   }
 
+  // 弧度转角度
+  double radianToAngle(double radian) {
+    return radian * 180 / (math.pi);
+  }
+
+  // 角度转弧度
+  double angleToRadian(double angle) {
+    return angle * math.pi / 180;
+  }
+
   void _startAnimation() {
-    Future.delayed(Duration(milliseconds: 100), () {
+    Future.delayed(const Duration(milliseconds: 50), () {
       setState(() {
         _offset -= 1.0; // 控制移动速度
-        if (_offset <= -stripeWidth*2) {
+        if (_offset <= -_stripeWidth * 2) {
           _offset = 0.0;
         }
         _startAnimation();
@@ -45,34 +54,43 @@ class _MovingWarningStripeState extends State<MovingWarningStripe> {
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        width: 200,
-        height: 30,
-        color: Colors.black,
-        child: Stack(
-          children: List.generate(
-            30, // 无数个条纹
-                (index) {
-              final leftOffset = index * stripeWidth + _offset;
-              return Positioned(
-                left: leftOffset,
-                top: -math.sin(45) * stripeWidth, // 裁剪掉顶部
-                child: Transform.rotate(
-                  angle: math.pi / 4, // 45°的弧度
-                  child: Container(
-                    width: stripeWidth,
-                    height: stripeHeight * math.sin(45) * 4,
-                    color: index.isEven ? yellowColor : blackColor,
-                  ),
+  Widget generateTape(double borderWidth, double borderHeight,
+      double stripeWidth, double angle) {
+    angle = angle.clamp(1, 80);
+
+    _stripeWidth = stripeWidth;
+    double rectWidth = borderHeight / math.cos(angleToRadian(angle));
+    double rectHeight = borderHeight / math.sin(angleToRadian(angle));
+
+    return Container(
+      width: borderWidth,
+      height: borderHeight,
+      color: blackColor,
+      child: Stack(
+        children: List.generate(
+          (borderWidth / _stripeWidth + 3).toInt(), // 无数个条纹
+          (index) {
+            final leftOffset = index * _stripeWidth + _offset;
+            return Positioned(
+              left: leftOffset,
+              top: -math.cos(angleToRadian(angle)) * _stripeWidth, // 裁剪掉顶部
+              child: Transform.rotate(
+                angle: angleToRadian(angle), // 角度转弧度
+                child: Container(
+                  width: rectWidth,
+                  height: rectHeight,
+                  color: index.isEven ? yellowColor : blackColor,
                 ),
-              );
-            },
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(child: generateTape(200, 30, 20, 30));
   }
 }
