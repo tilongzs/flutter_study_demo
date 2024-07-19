@@ -57,10 +57,25 @@ Future<Uint8List?> readAlbumPhoto(BuildContext context) async {
     },
     cropDelegate: InstaAssetCropDelegate(preferredSize: 1080, cropRatios: [3/4]),
     pickerTheme: theme.copyWith(
-      // ... 省略其他配置
-    ),
+                      canvasColor: Colors.black, // body background color
+                      splashColor: Colors.grey, // ontap splash color
+                      appBarTheme: theme.appBarTheme.copyWith(
+                        backgroundColor: Colors.black, // app bar background color
+                        titleTextStyle: Theme.of(context)
+                            .appBarTheme
+                            .titleTextStyle
+                            ?.copyWith(color: Colors.white), // change app bar title text style to be like app theme
+                      ),
+                      // edit `confirm` button style
+                      textButtonTheme: TextButtonThemeData(
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.blue,
+                          disabledForegroundColor: Colors.grey,
+                        ),
+                      ),
+                    ),
     closeOnComplete: true,
-    textDelegate: AssetPickerTextDelegate(),
+    textDelegate: AssetPickerTextDelegate(),// EnglishAssetPickerTextDelegate(),
   );
 
   return completer.future; // 返回 Completer 的 future
