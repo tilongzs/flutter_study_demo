@@ -10,18 +10,10 @@ class TabPage extends StatelessWidget {
     return Navigator(
       key: Get.nestedKey(index),
       onGenerateRoute: (settings) {
-        if (settings.name == '/') {
-          return GetPageRoute(
-            page: () => TabContent(index: index),
-            settings: settings,
-          );
-        } else if (settings.name == '/subpage') {
-          return GetPageRoute(
-            page: () => SubPage(index: index),
-            settings: settings,
-          );
-        }
-        return null;
+        return GetPageRoute(
+          page: () => TabContent(index: index),
+          settings: settings,
+        );
       },
     );
   }
@@ -39,7 +31,7 @@ class TabContent extends StatelessWidget {
       body: Center(
         child: ElevatedButton(
           onPressed: () {
-            Get.toNamed('/subpage', id: index);
+            Get.to(()=>SubPage(index: index), id: index);
           },
           child: Text('Go to SubPage of Tab $index'),
         ),
