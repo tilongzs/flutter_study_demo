@@ -93,6 +93,24 @@ class HomePage extends StatelessWidget {
   }
 }
 
+class LoginPage2 extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Login 2')),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: () {
+            // 跳转首页
+            Get.offAll(()=>HomePage());
+          },
+          child: Text('HomePage'),
+        ),
+      ),
+    );
+  }
+
+}
 class LoginPage extends StatelessWidget {
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -111,7 +129,7 @@ class LoginPage extends StatelessWidget {
             ElevatedButton(
               onPressed: () {
                 // 假设登录成功
-                Get.offAll(()=>HomePage());
+                Get.to(()=>LoginPage2());
               },
               child: Text('Login'),
             ),
