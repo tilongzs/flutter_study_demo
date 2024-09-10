@@ -84,7 +84,7 @@ class HomePage extends StatelessWidget {
         floatingActionButton: FloatingActionButton(
           onPressed: () {
             // 退出登录，返回登录页面
-            Get.offAllNamed('/login');
+            Get.offAll(()=>LoginPage());
           },
           child: Icon(Icons.logout),
         ),
@@ -111,7 +111,7 @@ class LoginPage extends StatelessWidget {
             ElevatedButton(
               onPressed: () {
                 // 假设登录成功
-                Get.offNamed('/home');
+                Get.offAll(()=>HomePage());
               },
               child: Text('Login'),
             ),
@@ -130,11 +130,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
-      initialRoute: '/login',
-      getPages: [
-        GetPage(name: '/login', page: () => LoginPage()),
-        GetPage(name: '/home', page: () => HomePage()),
-      ],
+      home: LoginPage()
     );
   }
 }
