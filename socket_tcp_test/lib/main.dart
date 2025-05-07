@@ -1,9 +1,10 @@
 import 'dart:convert';
-import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:network_info_plus/network_info_plus.dart';
+import 'package:file_picker/file_picker.dart';
+import 'TCPHandler.dart';
+import 'netframe.dart';
 
 void main() {
   runApp(MyApp());
@@ -33,10 +34,12 @@ class _HomePageState extends State<HomePage> {
   final _recvMsgListHeight = 200.0;
 
   String _localIP = '127.0.0.1'; //本机局域网IP
-  Socket? _connectedSocket = null; // 已建立连接的socket
-  ServerSocket? _serverSocket = null; // 服务器监听socket
+  TCPHandler?	_tcpHandler;
+  SocketData? _currentSocketData = null; // 已建立连接的socket
+  bool  _isUseSSL = false;
 
   TextEditingController _recvMsgController = TextEditingController(); //  接收消息文本控制器
+  ScrollController      _recvMsgScrollController = ScrollController();
   ScrollController _recvScrollController = ScrollController(); //  接收消息文本滚动控制器
   TextEditingController _sendMsgController = TextEditingController(); //  发送消息文本控制器
   TextEditingController _IPTxtController = TextEditingController(); //  连接服务器IP文本控制器
@@ -46,10 +49,10 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
 
-    _recvMsgController.addListener(() {
-      // 自动滚动至底部
-      _recvScrollController.jumpTo(_recvScrollController.position.maxScrollExtent);
-    });
+    // _recvMsgController.addListener(() {
+    //   // 自动滚动至底部
+    //   _recvScrollController.jumpTo(_recvScrollController.position.maxScrollExtent);
+    // });
 
     _IPTxtController.text = _localIP;
     _portTxtController.text = '23300';
@@ -65,6 +68,33 @@ class _HomePageState extends State<HomePage> {
     _portTxtController.dispose();
 
     super.dispose();
+  }
+
+  void _onAccept(SocketData socketData) {
+    _currentSocketData = socketData;
+
+    printLog('新客户端已连接：${socketData.remoteIP}:${socketData.remotePort}');
+  }
+
+  void _onConnected(SocketData socketData) {
+    _currentSocketData = socketData;
+
+    printLog('连接TCP服务端成功：${socketData.remoteIP}:${socketData.remotePort}');
+  }
+
+  void _onDisconnect(SocketData socketData) {
+    if(_currentSocketData == socketData){
+      _currentSocketData = null;
+      printLog('当前连接已断开');
+    }
+  }
+
+  void _onRecv(SocketData socketData, LocalPackage localPackage) {
+    printLog('收到：${localPackage.headInfo.size}字节数据');
+  }
+
+  void _onSend(SocketData socketData, LocalPackage localPackage) {
+    printLog('已发送：${localPackage.headInfo.size}字节数据');
   }
 
   @override
@@ -86,18 +116,29 @@ class _HomePageState extends State<HomePage> {
   }
 
   // 获取本机局域网IP
-  void initIP() async {
+  void initIP() async{
     try {
       final wifiInfo = NetworkInfo();
-      String? localIP = await wifiInfo.getWifiIP();
-      if(localIP != null){
-        printLog('获取到本地IP：${localIP}');
+      var wifiIP = await wifiInfo.getWifiIP();
+      if (wifiIP != null){
+        if (wifiIP.isNotEmpty){
+          _localIP = wifiIP;
+          printLog('获取到本机局域网IP ${_localIP}');
+        }else{
+          printLog('wifiInfo.getWifiIP()获取本机局域网IP为空');
+        }
+      }else{
+        printLog('尝试获取本机局域网IP失败');
       }
     } on PlatformException {
-      print('尝试获取本机局域网IP异常.');
+      print('Failed to get broadcast IP.');
     } catch (e) {
       printLog('尝试获取本机局域网IP异常，e=${e.toString()}');
     }
+
+    setState(() {
+      _IPTxtController.text = _localIP;
+    });
   }
 
   // 接收消息列表框
@@ -137,19 +178,12 @@ class _HomePageState extends State<HomePage> {
   void onBtnListen() async {
     var serverIP = _IPTxtController.text;
     var serverPot = int.parse(_portTxtController.text);
-    try {
-      _serverSocket = await ServerSocket.bind(
-          InternetAddress.tryParse(serverIP), serverPot);
-
-      // 开始监听
-      _serverSocket?.listen(onServerSocketData,
-          onError: onSocketError,
-          onDone: onServerSocketDone,
-          cancelOnError: true);
-      setState(() {});
+    _tcpHandler = TCPHandler(printLog);
+    bool isSucess = await _tcpHandler!.listen(serverPot, _onAccept, _onDisconnect, _onRecv, _onSend);
+    if(isSucess){
       printLog('开始监听');
-    } catch (e) {
-      printLog('监听socket出现异常，e=${e.toString()}');
+    }else{
+      printLog('开始监听失败');
     }
   }
 
@@ -157,51 +191,19 @@ class _HomePageState extends State<HomePage> {
   void onBtnConnectToServer() async {
     var serverIP = _IPTxtController.text;
     var serverPot = int.parse(_portTxtController.text);
-    try {
-      _connectedSocket = await Socket.connect(serverIP, serverPot,
-          timeout: Duration(milliseconds: 500));
-      _connectedSocket?.listen(onSocketData,
-          onError: onSocketError, onDone: onSocketDone);
-
-      printLog('与服务端建立连接');
-      setState(() {});
-    } catch (e) {
-      printLog('连接socket出现异常，e=${e.toString()}');
+    _tcpHandler = TCPHandler(printLog);
+    bool isSucess = await _tcpHandler!.connect(serverIP, serverPot, _onConnected, _onDisconnect, _onRecv, _onSend, isUseSSL: _isUseSSL);
+    if(isSucess){
+      printLog('连接服务端成功');
+    }else{
+      printLog('连接服务端失败');
     }
   }
 
-  // 作为Server有新连接（Accept）
-  void onServerSocketData(Socket socket) {
-    _connectedSocket = socket;
-    _connectedSocket?.listen(onSocketData,
-        onError: onSocketError, onDone: onSocketDone);
-
-    printLog(
-        '有新客户端连接：${_connectedSocket?.remoteAddress.address}:${_connectedSocket?.remotePort}');
-  }
-
-  // 作为Server停止监听
-  void onServerSocketDone() {
-    _serverSocket = null;
-    printLog('服务端停止监听');
-  }
-
-  // 接收到数据
-  void onSocketData(Uint8List data) {
-    String msg = utf8.decode(data); // 将UTF8数据解码
-    printLog('收到：${data.lengthInBytes}字节数据 内容:$msg');
-  }
-
-  // socket关闭
-  void onSocketDone() {
-    _connectedSocket?.close();
-    _connectedSocket = null;
-    printLog('断开连接');
-  }
-
-  // socket错误
-  void onSocketError(Object error) {
-    printLog('与服务端已连接的socket出现错误，error=${error.toString()}');
+  void onSSLChecked(isUseSSL){
+    setState(() {
+      _isUseSSL = isUseSSL;
+    });
   }
 
   Widget IPSettingRect() {
@@ -210,7 +212,11 @@ class _HomePageState extends State<HomePage> {
         spacing: 10,
         children: [
           ElevatedButton(onPressed: onBtnListen, child: Text('监听')),
-          ElevatedButton(onPressed: onBtnConnectToServer, child: Text('连接'))
+          ElevatedButton(onPressed: onBtnConnectToServer, child: Text('连接')),
+          SizedBox(width: 100, height: 30,child: Row(children: [
+            Checkbox(value: _isUseSSL, onChanged: onSSLChecked),
+            Text('使用SSL')
+          ],),)
         ],
       );
     };
@@ -218,17 +224,7 @@ class _HomePageState extends State<HomePage> {
     Function createDisconnectButton = () {
       return ElevatedButton(
           onPressed: () {
-            // 断开已连接的socket
-            if (_connectedSocket != null) {
-              _connectedSocket?.close();
-              _connectedSocket = null;
-            }
-
-            // 断开监听socket
-            if (_serverSocket != null) {
-              _serverSocket?.close();
-              _serverSocket = null;
-            }
+            _tcpHandler?.stop();
 
             setState(() {});
           },
@@ -292,7 +288,7 @@ class _HomePageState extends State<HomePage> {
           ),
 
           // 按钮
-          (_connectedSocket != null || _serverSocket != null)
+          _currentSocketData != null
               ? createDisconnectButton()
               : createConnectButton(),
         ],
@@ -305,19 +301,12 @@ class _HomePageState extends State<HomePage> {
   // 发送消息
   void onBtnSendMsg() async {
     if (_sendMsgController.text.isNotEmpty) {
-      if (_connectedSocket != null) {
-        _connectedSocket?.add(utf8.encode(_sendMsgController.text)); // 发送UTF8数据
+      if (_currentSocketData != null) {
+        _tcpHandler?.sendList(_currentSocketData!, NetInfoType.NIT_Message, data: utf8.encode(_sendMsgController.text));
       }
 
       _sendMsgController.text = '';
       setState(() {});
-    }
-  }
-
-  // 连续发送多条消息
-  void onBtnSendmultipleMsg() {
-    for (int i = 0; i < 100; ++i) {
-      _connectedSocket?.writeln("onBtnSendmultipleMsg");
     }
   }
 
@@ -328,7 +317,31 @@ class _HomePageState extends State<HomePage> {
     _connectedSocket?.add(dataWriter.toBytes());*/
 
     var byteData = ByteData(1024 * 1024);
-    _connectedSocket?.add(byteData.buffer.asUint8List());
+    if (_currentSocketData != null) {
+      _tcpHandler?.sendList(_currentSocketData!, NetInfoType.NIT_Message, data: byteData.buffer.asUint8List());
+    }
+  }
+
+  // 发送文件
+  void onBtnSendFile() async{
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+      );
+      if (result != null) {
+        final filePath = result.files.single.path;
+        printLog("选中的文件路径：$filePath");
+
+        if (_currentSocketData != null) {
+          _tcpHandler?.sendList(_currentSocketData!, NetInfoType.NIT_File, filePath: filePath);
+        }
+      } else {
+        printLog("未选择文件");
+      }
+    } catch (e) {
+      printLog("选择文件时出错：$e");
+      _tcpHandler?.stop();
+    }
   }
 
   Widget sendMsgRect() {
@@ -363,10 +376,8 @@ class _HomePageState extends State<HomePage> {
             spacing: 10,
             children: [
               ElevatedButton(onPressed: onBtnSendMsg, child: Text('发送消息')),
-              ElevatedButton(
-                  onPressed: onBtnSendmultipleMsg, child: Text('发送多条消息')),
-              ElevatedButton(
-                  onPressed: onBtnSendBigBuffer, child: Text('发送大缓存数据')),
+              ElevatedButton(onPressed: onBtnSendBigBuffer, child: Text('发送大缓存数据')),
+              ElevatedButton(onPressed: onBtnSendFile, child: Text('发送文件')),
             ],
           ),
         ],
@@ -377,9 +388,19 @@ class _HomePageState extends State<HomePage> {
 
   // 打印日志
   void printLog(String log) {
-    log = DateTime.now().toString() + log + '\n';
-    print(log);
-    _recvMsgController.text += log;
-    setState(() {});
+    setState(() {
+      log = '${DateTime.now()}\t$log';
+      print(log);
+      log += '\n';
+      _recvMsgController.text += log;
+
+      if (_recvMsgScrollController.hasClients) {
+        Future.delayed(const Duration(milliseconds: 30), () { // 延迟等待位置数据更新
+          _recvMsgScrollController.jumpTo(
+            _recvMsgScrollController.position.maxScrollExtent, //滚动到底部
+          );
+        });
+      }
+    });
   }
 }

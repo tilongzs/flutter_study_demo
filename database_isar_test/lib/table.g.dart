@@ -17,19 +17,24 @@ const EmailSchema = CollectionSchema(
   name: r'Email',
   id: 2558369672199317214,
   properties: {
-    r'dateTime': PropertySchema(
+    r'attachmentSize': PropertySchema(
       id: 0,
+      name: r'attachmentSize',
+      type: IsarType.long,
+    ),
+    r'dateTime': PropertySchema(
+      id: 1,
       name: r'dateTime',
       type: IsarType.dateTime,
     ),
     r'recipient': PropertySchema(
-      id: 1,
+      id: 2,
       name: r'recipient',
       type: IsarType.object,
       target: r'Recepient',
     ),
     r'title': PropertySchema(
-      id: 2,
+      id: 3,
       name: r'title',
       type: IsarType.string,
     )
@@ -39,7 +44,21 @@ const EmailSchema = CollectionSchema(
   deserialize: _emailDeserialize,
   deserializeProp: _emailDeserializeProp,
   idName: r'id',
-  indexes: {},
+  indexes: {
+    r'attachmentSize': IndexSchema(
+      id: 6190725602889412212,
+      name: r'attachmentSize',
+      unique: false,
+      replace: false,
+      properties: [
+        IndexPropertySchema(
+          name: r'attachmentSize',
+          type: IndexType.value,
+          caseSensitive: false,
+        )
+      ],
+    )
+  },
   links: {},
   embeddedSchemas: {r'Recepient': RecepientSchema},
   getId: _emailGetId,
@@ -77,14 +96,15 @@ void _emailSerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeDateTime(offsets[0], object.dateTime);
+  writer.writeLong(offsets[0], object.attachmentSize);
+  writer.writeDateTime(offsets[1], object.dateTime);
   writer.writeObject<Recepient>(
-    offsets[1],
+    offsets[2],
     allOffsets,
     RecepientSchema.serialize,
     object.recipient,
   );
-  writer.writeString(offsets[2], object.title);
+  writer.writeString(offsets[3], object.title);
 }
 
 Email _emailDeserialize(
@@ -94,14 +114,15 @@ Email _emailDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = Email();
-  object.dateTime = reader.readDateTimeOrNull(offsets[0]);
+  object.attachmentSize = reader.readLongOrNull(offsets[0]);
+  object.dateTime = reader.readDateTimeOrNull(offsets[1]);
   object.id = id;
   object.recipient = reader.readObjectOrNull<Recepient>(
-    offsets[1],
+    offsets[2],
     RecepientSchema.deserialize,
     allOffsets,
   );
-  object.title = reader.readStringOrNull(offsets[2]);
+  object.title = reader.readStringOrNull(offsets[3]);
   return object;
 }
 
@@ -113,14 +134,16 @@ P _emailDeserializeProp<P>(
 ) {
   switch (propertyId) {
     case 0:
-      return (reader.readDateTimeOrNull(offset)) as P;
+      return (reader.readLongOrNull(offset)) as P;
     case 1:
+      return (reader.readDateTimeOrNull(offset)) as P;
+    case 2:
       return (reader.readObjectOrNull<Recepient>(
         offset,
         RecepientSchema.deserialize,
         allOffsets,
       )) as P;
-    case 2:
+    case 3:
       return (reader.readStringOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -143,6 +166,14 @@ extension EmailQueryWhereSort on QueryBuilder<Email, Email, QWhere> {
   QueryBuilder<Email, Email, QAfterWhere> anyId() {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(const IdWhereClause.any());
+    });
+  }
+
+  QueryBuilder<Email, Email, QAfterWhere> anyAttachmentSize() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(
+        const IndexWhereClause.any(indexName: r'attachmentSize'),
+      );
     });
   }
 }
@@ -212,9 +243,188 @@ extension EmailQueryWhere on QueryBuilder<Email, Email, QWhereClause> {
       ));
     });
   }
+
+  QueryBuilder<Email, Email, QAfterWhereClause> attachmentSizeIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'attachmentSize',
+        value: [null],
+      ));
+    });
+  }
+
+  QueryBuilder<Email, Email, QAfterWhereClause> attachmentSizeIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'attachmentSize',
+        lower: [null],
+        includeLower: false,
+        upper: [],
+      ));
+    });
+  }
+
+  QueryBuilder<Email, Email, QAfterWhereClause> attachmentSizeEqualTo(
+      int? attachmentSize) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'attachmentSize',
+        value: [attachmentSize],
+      ));
+    });
+  }
+
+  QueryBuilder<Email, Email, QAfterWhereClause> attachmentSizeNotEqualTo(
+      int? attachmentSize) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'attachmentSize',
+              lower: [],
+              upper: [attachmentSize],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'attachmentSize',
+              lower: [attachmentSize],
+              includeLower: false,
+              upper: [],
+            ));
+      } else {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'attachmentSize',
+              lower: [attachmentSize],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'attachmentSize',
+              lower: [],
+              upper: [attachmentSize],
+              includeUpper: false,
+            ));
+      }
+    });
+  }
+
+  QueryBuilder<Email, Email, QAfterWhereClause> attachmentSizeGreaterThan(
+    int? attachmentSize, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'attachmentSize',
+        lower: [attachmentSize],
+        includeLower: include,
+        upper: [],
+      ));
+    });
+  }
+
+  QueryBuilder<Email, Email, QAfterWhereClause> attachmentSizeLessThan(
+    int? attachmentSize, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'attachmentSize',
+        lower: [],
+        upper: [attachmentSize],
+        includeUpper: include,
+      ));
+    });
+  }
+
+  QueryBuilder<Email, Email, QAfterWhereClause> attachmentSizeBetween(
+    int? lowerAttachmentSize,
+    int? upperAttachmentSize, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'attachmentSize',
+        lower: [lowerAttachmentSize],
+        includeLower: includeLower,
+        upper: [upperAttachmentSize],
+        includeUpper: includeUpper,
+      ));
+    });
+  }
 }
 
 extension EmailQueryFilter on QueryBuilder<Email, Email, QFilterCondition> {
+  QueryBuilder<Email, Email, QAfterFilterCondition> attachmentSizeIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'attachmentSize',
+      ));
+    });
+  }
+
+  QueryBuilder<Email, Email, QAfterFilterCondition> attachmentSizeIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'attachmentSize',
+      ));
+    });
+  }
+
+  QueryBuilder<Email, Email, QAfterFilterCondition> attachmentSizeEqualTo(
+      int? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'attachmentSize',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Email, Email, QAfterFilterCondition> attachmentSizeGreaterThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'attachmentSize',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Email, Email, QAfterFilterCondition> attachmentSizeLessThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'attachmentSize',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Email, Email, QAfterFilterCondition> attachmentSizeBetween(
+    int? lower,
+    int? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'attachmentSize',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
   QueryBuilder<Email, Email, QAfterFilterCondition> dateTimeIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNull(
@@ -509,6 +719,18 @@ extension EmailQueryObject on QueryBuilder<Email, Email, QFilterCondition> {
 extension EmailQueryLinks on QueryBuilder<Email, Email, QFilterCondition> {}
 
 extension EmailQuerySortBy on QueryBuilder<Email, Email, QSortBy> {
+  QueryBuilder<Email, Email, QAfterSortBy> sortByAttachmentSize() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'attachmentSize', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Email, Email, QAfterSortBy> sortByAttachmentSizeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'attachmentSize', Sort.desc);
+    });
+  }
+
   QueryBuilder<Email, Email, QAfterSortBy> sortByDateTime() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'dateTime', Sort.asc);
@@ -535,6 +757,18 @@ extension EmailQuerySortBy on QueryBuilder<Email, Email, QSortBy> {
 }
 
 extension EmailQuerySortThenBy on QueryBuilder<Email, Email, QSortThenBy> {
+  QueryBuilder<Email, Email, QAfterSortBy> thenByAttachmentSize() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'attachmentSize', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Email, Email, QAfterSortBy> thenByAttachmentSizeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'attachmentSize', Sort.desc);
+    });
+  }
+
   QueryBuilder<Email, Email, QAfterSortBy> thenByDateTime() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'dateTime', Sort.asc);
@@ -573,6 +807,12 @@ extension EmailQuerySortThenBy on QueryBuilder<Email, Email, QSortThenBy> {
 }
 
 extension EmailQueryWhereDistinct on QueryBuilder<Email, Email, QDistinct> {
+  QueryBuilder<Email, Email, QDistinct> distinctByAttachmentSize() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'attachmentSize');
+    });
+  }
+
   QueryBuilder<Email, Email, QDistinct> distinctByDateTime() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'dateTime');
@@ -591,6 +831,12 @@ extension EmailQueryProperty on QueryBuilder<Email, Email, QQueryProperty> {
   QueryBuilder<Email, int, QQueryOperations> idProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'id');
+    });
+  }
+
+  QueryBuilder<Email, int?, QQueryOperations> attachmentSizeProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'attachmentSize');
     });
   }
 

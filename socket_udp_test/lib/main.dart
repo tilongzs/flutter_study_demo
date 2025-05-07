@@ -36,6 +36,7 @@ class _HomePageState extends State<HomePage> {
   RawDatagramSocket? _bindSocket;
 
   TextEditingController _recvMsgController = TextEditingController(); // 接收消息文本控制器
+  ScrollController      _recvMsgScrollController = ScrollController();
   TextEditingController _sendMsgController = TextEditingController(); //  发送消息文本控制器
   TextEditingController _ipTxtController = TextEditingController(); //  连接服务器IP文本控制器
   TextEditingController _portTxtController = TextEditingController(); //  连接服务器端口文本控制器
@@ -82,7 +83,16 @@ class _HomePageState extends State<HomePage> {
     try {
       final wifiInfo = NetworkInfo();
       var wifiIP = await wifiInfo.getWifiIP();
-      _localIP = wifiIP == null ? "" : wifiIP;
+      if (wifiIP != null){
+        if (wifiIP.isNotEmpty){
+          _localIP = wifiIP;
+          printLog('获取到本机局域网IP ${_localIP}');
+        }else{
+          printLog('wifiInfo.getWifiIP()获取本机局域网IP为空');
+        }
+      }else{
+        printLog('尝试获取本机局域网IP失败');
+      }
     } on PlatformException {
       print('Failed to get broadcast IP.');
     } catch (e) {
@@ -145,7 +155,6 @@ class _HomePageState extends State<HomePage> {
             Datagram? dg = _bindSocket!.receive();
             if(dg != null){
               String msg = utf8.decode(dg!.data); // 将UTF8数据解码
-              _recvMsgController.text += ("\r\n" + msg);
               printLog('收到来自${dg.address.toString()}:${dg.port}的数据：${dg.data.lengthInBytes}字节数据 内容:$msg');
             }
           }
@@ -306,23 +315,23 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
-  Widget createMsgListview() {
-    return NotificationListener<ScrollNotification>(
-      child: ListView.builder(
-        itemBuilder: (context, index) {
-          return Text(_recvMsg[index]);
-        },
-        itemCount: _recvMsg.length,
-      ),
-    );
-  }
   /**********************************************************************/
 
   // 打印日志
   void printLog(String log) {
-    print(log);
-    _recvMsg.add(log);
-    setState(() {});
+    setState(() {
+      log = '${DateTime.now()}\t$log';
+      print(log);
+      log += '\n';
+      _recvMsgController.text += log;
+
+      if (_recvMsgScrollController.hasClients) {
+        Future.delayed(const Duration(milliseconds: 30), () { // 延迟等待位置数据更新
+          _recvMsgScrollController.jumpTo(
+            _recvMsgScrollController.position.maxScrollExtent, //滚动到底部
+          );
+        });
+      }
+    });
   }
 }
