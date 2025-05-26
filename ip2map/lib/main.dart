@@ -74,7 +74,9 @@ class _IpMapPageState extends State<IpMapPage> {
 
           // 如果经纬度为空，尝试使用 geocoding 包获取
           if (lat == null || lon == null) {
-            List<Location> locations = await locationFromAddress('$city, ${geoData.country}');
+            List<Location> locations = await locationFromAddress(
+              '$city, ${geoData.country}',
+            );
             if (locations.isNotEmpty) {
               lat = locations.first.latitude;
               lon = locations.first.longitude;
@@ -85,7 +87,7 @@ class _IpMapPageState extends State<IpMapPage> {
             setState(() {
               cityIpCounts.update(
                 city,
-                    (value) => CityData(
+                (value) => CityData(
                   count: value.count + 1,
                   latitude: lat!,
                   longitude: lon!,
@@ -115,13 +117,24 @@ class _IpMapPageState extends State<IpMapPage> {
         setState(() {
           initialCenter = LatLng(firstCity.latitude, firstCity.longitude);
         });
-        _mapController.move(LatLng(firstCity.latitude, firstCity.longitude), 4.0);
+        _mapController.move(
+          LatLng(firstCity.latitude, firstCity.longitude),
+          4.0,
+        );
       });
     }
 
     setState(() {
       isLoading = false;
     });
+  }
+
+  // 根据 IP 数量返回颜色
+  Color getColorForIpCount(int count) {
+    if (count >= 10) return Colors.red; // 10+ IPs: 红色
+    if (count >= 5) return Colors.orange; // 5-9 IPs: 橙色
+    if (count >= 2) return Colors.yellow; // 2-4 IPs: 黄色
+    return Colors.green; // 1 IP: 绿色
   }
 
   @override
@@ -132,58 +145,105 @@ class _IpMapPageState extends State<IpMapPage> {
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : FlutterMap(
-        mapController: _mapController,
-        options: MapOptions(
-          initialCenter: LatLng(37.7749, -122.4194), // 默认中心（旧金山）
-          initialZoom: 4.0,
-        ),
-        children: [
-          TileLayer(
-            urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-          ),
-          MarkerClusterLayerWidget(
-            options: MarkerClusterLayerOptions(
-              maxClusterRadius: 45,
-              size: const Size(40, 40),
-              markers: cityIpCounts.entries.map((entry) {
-                final cityData = entry.value;
-                return Marker(
-                  width: 80.0,
-                  height: 100.0,
-                  point: LatLng(cityData.latitude, cityData.longitude),
-                  child: Column(
+          : Row(
+              children: [
+                // 地图区域
+                Expanded(
+                  flex: 3,
+                  child: FlutterMap(
+                    mapController: _mapController,
+                    options: MapOptions(
+                      initialCenter:
+                          initialCenter ?? LatLng(37.7749, -122.4194),
+                      initialZoom: 4.0,
+                    ),
                     children: [
-                      Text(
-                        '${entry.key}\n(${cityData.count})',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          backgroundColor: Colors.white70,
-                        ),
+                      TileLayer(
+                        urlTemplate:
+                            'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        subdomains: ['a', 'b', 'c'],
                       ),
-                      const Icon(
-                        Icons.location_pin,
-                        color: Colors.red,
-                        size: 40.0,
+                      MarkerClusterLayerWidget(
+                        options: MarkerClusterLayerOptions(
+                          maxClusterRadius: 45,
+                          size: const Size(40, 40),
+                          markers: cityIpCounts.entries.map((entry) {
+                            final cityData = entry.value;
+                            return Marker(
+                              width: 20,
+                              height: 20,
+                              point: LatLng(
+                                cityData.latitude,
+                                cityData.longitude,
+                              ),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: getColorForIpCount(
+                                    cityData.count,
+                                  ).withOpacity(0.7),
+                                  border: Border.all(
+                                    color: Colors.black,
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                          builder: (context, markers) {
+                            return FloatingActionButton(
+                              child: Text(markers.length.toString()),
+                              onPressed: null,
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                            );
+                          },
+                        ),
                       ),
                     ],
                   ),
-                );
-              }).toList(),
-              builder: (context, markers) {
-                return FloatingActionButton(
-                  child: Text(markers.length.toString()),
-                  onPressed: null,
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                );
-              },
+                ),
+                // 右侧列表区域
+                Container(
+                  width: 200,
+                  color: Colors.grey[200],
+                  child: Column(
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: Text(
+                          'Top 10 Cities by IP Count',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: ListView(
+                          children: cityIpCounts.entries
+                              .toList()
+                              .asMap()
+                              .entries
+                              .where((entry) => entry.key < 10) // 限制前10
+                              .map((entry) {
+                                final index = entry.key;
+                                final city = entry.value.key;
+                                final count = entry.value.value.count;
+                                return ListTile(
+                                  leading: Text('${index + 1}.'),
+                                  title: Text(city),
+                                  trailing: Text('$count IPs'),
+                                );
+                              })
+                              .toList(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }
