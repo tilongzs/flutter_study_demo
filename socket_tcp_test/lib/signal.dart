@@ -1,55 +1,59 @@
 class Signal {
+	final List<SignalHelper> _helpers = List<SignalHelper>.empty(growable: true);
 
-	List<SignalHelper> _helpers = [];
-	
-	Signal(){
-		_helpers = List<SignalHelper>.empty(growable: true);
-	}
-	
-	List<SignalHelper> get helpers => _helpers;
+	List<SignalHelper> get helpers => List.unmodifiable(_helpers);
 	int get numListeners => _helpers.length;
-	
-	void add(Function fnc){
+
+	void add(Function fnc) {
 		_add(fnc, false);
 	}
-	
-	void addOnce(Function fnc){
+
+	void addOnce(Function fnc) {
 		_add(fnc, true);
 	}
-	
-	void _add(Function fnc, bool once){
-		SignalHelper e = new SignalHelper(fnc);
-		e.once = once;
+
+	void addOnlyOnce(Function fnc) {
+		removeAll();
+		_add(fnc, true);
+	}
+
+	void _add(Function fnc, bool once) {
+		SignalHelper e = SignalHelper(fnc, once: once);
 		_helpers.add(e);
 	}
-	      
-	void remove(Function fnc){
+
+	void remove(Function fnc) {
 		_helpers.removeWhere((element) => element.fnc == fnc);
 	}
 
-	void removeAll(){
+	void removeAll() {
 		_helpers.clear();
 	}
 
-	void dispatch([arguments]){
-		_helpers.forEach((SignalHelper e){
+	void dispatch([arguments]) {
+		final helpers = List<SignalHelper>.from(_helpers);
+		final toRemove = <SignalHelper>[];
+
+		for (var e in helpers) {
 			Function f = e.fnc;
 			if (arguments != null) {
 				f(arguments);
-			}
-			else{
+			} else {
 				f();
 			}
 
-			if(e.once) {
-				remove(e.fnc);
+			if (e.once) {
+				toRemove.add(e);
 			}
-		});
+		}
+
+		_helpers.removeWhere((e) => toRemove.contains(e));
 	}
 }
 
 class SignalHelper {
-	bool once = false;
-	Function fnc;
-	SignalHelper(Function this.fnc);
+	final bool once;
+	final Function fnc;
+
+	SignalHelper(this.fnc, {this.once = false});
 }
