@@ -1,6 +1,8 @@
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:ui';
 import 'package:ffi/ffi.dart';
+import 'package:flutter/gestures.dart';
 import 'package:win32/win32.dart';
 import 'package:flutter/material.dart';
 import 'knownfolder.dart';
@@ -31,9 +33,9 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _hwnd = 0;
-  Pointer<POINT> _drawgBeginCursorPoint = calloc<POINT>(); // 拖动窗口的起始光标位置
-  Pointer<POINT> _drawgCursorPoint = calloc<POINT>(); // 拖动窗口的实时光标位置
-  Pointer<RECT> _dragBeginRect = calloc<RECT>(); // 拖动窗口的起始窗口位置
+  final _drawgBeginCursorPoint = calloc<POINT>(); // 拖动窗口的起始光标位置
+  final _drawgCursorPoint = calloc<POINT>(); // 拖动窗口的实时光标位置
+  final _dragBeginRect = calloc<RECT>(); // 拖动窗口的起始窗口位置
 
   @override
   void initState() {
@@ -110,8 +112,7 @@ class _HomePageState extends State<HomePage> {
 
       // 设置窗体位置 （居中显示）
       //  MoveWindow(_hwnd, left, top, width, height,  1);
-      SetWindowPos(
-          _hwnd, 0, left, top, 0, 0, 1 | 4 /*SWP_NOSIZE | SWP_NOZORDER*/);
+      SetWindowPos(_hwnd, 0, left, top, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
     } else {
       print('_hwnd == 0');
     }
@@ -124,6 +125,9 @@ class _HomePageState extends State<HomePage> {
     } else {
       print('_hwnd == 0');
     }
+
+    // 强制退出软件
+    exit(0);
   }
 
   // 最小化窗口
@@ -153,7 +157,7 @@ class _HomePageState extends State<HomePage> {
   void onBtnNoframe() {
     if (_hwnd != 0) {
       SetWindowLongPtr(
-          _hwnd, -16 /*GWL_STYLE*/, WS_CLIPCHILDREN | WS_POPUP | WS_VISIBLE);
+          _hwnd, GWL_STYLE, WS_CLIPCHILDREN | WS_POPUP | WS_VISIBLE);
     } else {
       print('_hwnd == 0');
     }
@@ -295,78 +299,61 @@ class _HomePageState extends State<HomePage> {
 
   Widget buttonsRect() {
     return Expanded(
-        child: Container(
-      child: Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        children: [
-          dragMoveWindowRect(),
-          ElevatedButton(
-              onPressed: onBtnWindowFromPoint, child: Text('WindowFromPoint')),
-          ElevatedButton(
-              onPressed: onBtnFindWindowEx, child: Text('FindWindowEx')),
-          ElevatedButton(onPressed: onBtnMoveWindow, child: Text('MoveWindow')),
-          ElevatedButton(
-              onPressed: onBtnCenterWindow, child: Text('窗口居中(SetWindowPos)')),
-          ElevatedButton(
-              onPressed: onBtnCloseWindow, child: Text('CloseWindow')),
-          ElevatedButton(
-              onPressed: onBtnPostQuitMessage, child: Text('PostQuitMessage')),
-          ElevatedButton(onPressed: onBtnKnownFolder, child: Text('获取系统文件夹路径')),
-          ElevatedButton(
-              onPressed: onBtnNoframe, child: Text('窗口无边框(SetWindowLongPtr)')),
-          ElevatedButton(onPressed: onBtnLoadTestDll, child: Text('加载自定义dll')),
-          pointerMsgRect(),
-          ElevatedButton(onPressed: onBtnSelectFile, child: Text('选择文件')),
-        ],
-      ),
+        child: Stack(
+      children: [
+        // 底层：全区域监听鼠标按下，用于拖拽（但按钮区域会被覆盖忽略）
+        Listener(
+          onPointerDown: (event) {
+            if (event.kind == PointerDeviceKind.mouse &&
+                event.buttons == kPrimaryButton) {
+              startDrag();
+            }
+          },
+          child: Container(color: Colors.transparent), // 占满整个区域
+        ),
+
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            ElevatedButton(
+                onPressed: onBtnWindowFromPoint,
+                child: Text('WindowFromPoint')),
+            ElevatedButton(
+                onPressed: onBtnFindWindowEx, child: Text('FindWindowEx')),
+            ElevatedButton(
+                onPressed: onBtnMoveWindow, child: Text('MoveWindow')),
+            ElevatedButton(
+                onPressed: onBtnCenterWindow,
+                child: Text('窗口居中(SetWindowPos)')),
+            ElevatedButton(
+                onPressed: onBtnCloseWindow, child: Text('CloseWindow')),
+            ElevatedButton(
+                onPressed: onBtnPostQuitMessage,
+                child: Text('PostQuitMessage')),
+            ElevatedButton(
+                onPressed: onBtnKnownFolder, child: Text('获取系统文件夹路径')),
+            ElevatedButton(
+                onPressed: onBtnNoframe,
+                child: Text('窗口无边框(SetWindowLongPtr)')),
+            ElevatedButton(
+                onPressed: onBtnLoadTestDll, child: Text('加载自定义dll')),
+            pointerMsgRect(),
+            ElevatedButton(onPressed: onBtnSelectFile, child: Text('选择文件')),
+          ],
+        ),
+      ],
     ));
   }
 
   // 鼠标拖动移动窗口
-  Widget dragMoveWindowRect() {
-    return GestureDetector(
-      child: Container(
-        width: 150,
-        height: 30,
-        alignment: Alignment.center,
-        color: Colors.yellow,
-        child: Text('鼠标按下拖动窗口'),
-      ),
-      onHorizontalDragStart: (DragStartDetails details) {
-        int isSucess = GetCursorPos(_drawgBeginCursorPoint);
-        if (isSucess != 0) {
-          print(
-              '_drawgBeginCursorPoint:${_drawgBeginCursorPoint.ref.x},${_drawgBeginCursorPoint.ref.y}');
-        }
+  void startDrag() {
+    // 释放鼠标捕获，让系统处理拖拽
+    ReleaseCapture();
 
-        if (_hwnd != 0) {
-          GetWindowRect(_hwnd, _dragBeginRect);
-          print(
-              '_dragBeginRect:${_dragBeginRect.ref.left},${_dragBeginRect.ref.top},${_dragBeginRect.ref.right},${_dragBeginRect.ref.bottom}');
-        }
-
-        //print('onHorizontalDragStart: globalPosition:${details.globalPosition} localPosition:${details.localPosition}');
-      },
-      onHorizontalDragUpdate: (DragUpdateDetails details) {
-        if (_hwnd != 0) {
-          GetCursorPos(_drawgCursorPoint);
-          int newLeft = _dragBeginRect.ref.left +
-              _drawgCursorPoint.ref.x -
-              _drawgBeginCursorPoint.ref.x;
-          int newTop = _dragBeginRect.ref.top +
-              _drawgCursorPoint.ref.y -
-              _drawgBeginCursorPoint.ref.y;
-          SetWindowPos(_hwnd, 0, newLeft.toInt(), newTop.toInt(), 0, 0,
-              1 | 4 /*SWP_NOSIZE | SWP_NOZORDER*/);
-          print('newLeft:$newLeft, newTop:$newTop');
-        }
-        //print('DragUpdateDetails: globalPosition:${details.globalPosition} localPosition:${details.localPosition}');
-      },
-      onHorizontalDragEnd: (DragEndDetails details) {
-        print('onHorizontalDragEnd');
-      },
-    );
+    // 发送系统命令：开始移动窗口
+    // SC_MOVE = 0xF010，鼠标左键移动
+    SendMessage(_hwnd, WM_SYSCOMMAND, SC_MOVE | 0x0002, 0);
   }
 
   // 鼠标按键消息
